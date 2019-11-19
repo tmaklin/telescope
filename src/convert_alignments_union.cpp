@@ -5,8 +5,11 @@
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+#include <exception>
 
 #include "cxxargs/include/cxxargs.hpp"
+
+#include "file.hpp"
 
 struct ec_info {
   std::vector<bool> pseudoalignment;
@@ -98,10 +101,10 @@ void ReadIntersectionAlignments(const std::string &path, std::unordered_map<uint
 }
 
 void ReadUnionAlignments(const std::string &path, std::unordered_map<uint32_t, ec_info> &ecs, uint32_t n_refs) {
-  std::ifstream file(path);
-  if (file.is_open()) {
+  File::In file(path);
+  if (file.stream().good()) {
     std::string line;
-    while (getline(file, line)) {
+    while (getline(file.stream(), line)) {
       std::vector<bool> alignment(n_refs, false);
       std::string part;
       std::stringstream partition(line);
@@ -132,6 +135,8 @@ void ReadUnionAlignments(const std::string &path, std::unordered_map<uint32_t, e
 	}
       }
     }
+  } else {
+    throw std::runtime_error("File " + path + " is not readable.");
   }
 }
 
@@ -149,9 +154,9 @@ std::unordered_map<std::vector<bool>, ec_info> CompressAlignments(const std::uno
 }
 
 void WriteFullAlignments(const std::string &path, const std::unordered_map<std::vector<bool>, ec_info> &ecs) {
-  std::ofstream ec_file(path + ".ec");
-  std::ofstream tsv_file(path + ".tsv");
-  if (ec_file.is_open() && tsv_file.is_open()) {
+  File::Out ec_file(path + ".ec");
+  File::Out tsv_file(path + ".tsv");
+  if (ec_file.stream().good() && tsv_file.stream().good()) {
     uint32_t ec_id = 0;
     for (auto ec : ecs) {
       ec_file << ec_id << '\t';
@@ -166,21 +171,25 @@ void WriteFullAlignments(const std::string &path, const std::unordered_map<std::
     }
     ec_file.close();
     tsv_file.close();
+  } else {
+    throw std::runtime_error("Pseudoalignment files in " + path + " are not readable.");
   }
 }
 
 void WriteReadToRef(const std::string &path, const std::unordered_map<uint32_t, ec_info> &ecs) {
-  std::ofstream file(path + "_read-to-ref.txt");
-  if (file.is_open()) {
+  File::Out file(path + "_read-to-ref.txt");
+  if (file.stream().good()) {
     for (auto ec : ecs) {
-      file << ec.first << ' ';
+      file.stream() << ec.first << ' ';
       for (size_t i = 0; i < ec.second.pseudoalignment.size(); ++i) {
 	if (ec.second.pseudoalignment.at(i)) {
-	  file << i << (i == ec.second.last_val ? '\n' : ' ');
+	  file.stream() << i << (i == ec.second.last_val ? '\n' : ' ');
 	}
       }
     }
     file.close();
+  } else {
+    throw std::runtime_error("File " + path + "_read-to-ref.txt" + " is not writable.");
   }
 }
  
