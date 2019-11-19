@@ -18,6 +18,8 @@ else()
   add_compile_options(-std=c++11)
 endif()
 
+include_directories(${CMAKE_SOURCE_DIR}/external)
+
 add_executable(convert_alignments_intersection ${CMAKE_SOURCE_DIR}/src/convert_alignments_intersection.cpp)
 add_executable(convert_alignments_union ${CMAKE_SOURCE_DIR}/src/convert_alignments_union.cpp)
 add_executable(convert_alignments_unpaired ${CMAKE_SOURCE_DIR}/src/convert_alignments_unpaired.cpp)
