@@ -56,6 +56,9 @@ namespace File {
       os.rdbuf(std::cout.rdbuf());
       os.setstate(std::cout.rdstate());
     }
+    void flush() {
+      os.flush();
+    }
     std::ostream& stream() { return this->os; }
     const std::string& filename() const { return this->myfile; }
   };

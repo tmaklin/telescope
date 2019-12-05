@@ -23,7 +23,10 @@ include_directories(include ${CMAKE_SOURCE_DIR}/external)
 add_executable(convert_alignments_intersection ${CMAKE_SOURCE_DIR}/src/convert_alignments_intersection.cpp)
 add_executable(convert_alignments_union ${CMAKE_SOURCE_DIR}/src/convert_alignments_union.cpp)
 add_executable(convert_alignments_unpaired ${CMAKE_SOURCE_DIR}/src/convert_alignments_unpaired.cpp)
+add_executable(telescope ${CMAKE_SOURCE_DIR}/src/telescope.cpp
+${CMAKE_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_SOURCE_DIR}/src/write_alignments.cpp)
 
 target_link_libraries(convert_alignments_intersection z)
 target_link_libraries(convert_alignments_union z)
 target_link_libraries(convert_alignments_unpaired z)
+target_link_libraries(telescope z)
