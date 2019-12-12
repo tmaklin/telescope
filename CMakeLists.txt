@@ -17,7 +17,8 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include ${CMAKE_SOURCE_DIR}/external)
 
-add_executable(telescope ${CMAKE_SOURCE_DIR}/src/telescope.cpp
-${CMAKE_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_SOURCE_DIR}/src/write_alignments.cpp)
+add_library(libtelescope ${CMAKE_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_SOURCE_DIR}/src/write_alignments.cpp)
+set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 
-target_link_libraries(telescope z)
+add_executable(telescope ${CMAKE_SOURCE_DIR}/src/telescope.cpp)
+target_link_libraries(telescope libtelescope z)

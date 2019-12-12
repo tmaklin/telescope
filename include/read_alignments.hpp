@@ -1,8 +1,6 @@
 #ifndef TELESCOPE_READ_ALIGNMENTS_HPP
 #define TELESCOPE_READ_ALIGNMENTS_HPP
 
-#include <unordered_map>
-#include <vector>
 #include <fstream>
 
 #include "common.hpp"

@@ -1,19 +1,9 @@
+#include "telescope.hpp"
+
 #include <string>
 
-#include "read_alignments.hpp"
-#include "write_alignments.hpp"
-#include "common.hpp"
-
-namespace cxxargs {
-  std::istream& operator>> (std::istream &in, Mode &t) {
-    std::string in_val;
-    in >> in_val;
-    t = get_mode(in_val);
-    return in;
-  }
-}
-
 #include "cxxargs/include/cxxargs.hpp"
+
 #include "file.hpp"
 
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
