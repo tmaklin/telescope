@@ -4,8 +4,8 @@ pseudoalignments to [kallisto](https://github.com/pachterlab/kallisto) pseudoali
 
 # Installation
 Either use the precompiled binary
-* [Linux 64-bit binary](https://github.com/tmaklin/telescope/releases/download/0.1.0/telescope-v0.1.1_linux_x86-64.tar.gz)
-* [macOS 64-bit binary](https://github.com/tmaklin/telescope/releases/download/0.1.0/telescope-v0.1.1_macOS_x86-64.tar.gz)
+* [Linux 64-bit binary](https://github.com/tmaklin/telescope/releases/download/v0.1.1/telescope-v0.1.1_linux_x86-64.tar.gz)
+* [macOS 64-bit binary](https://github.com/tmaklin/telescope/releases/download/v0.1.1/telescope-v0.1.1_macOS_x86-64.tar.gz)
 
 or follow the instructions for compiling telescope and libtelescope from source.
 
