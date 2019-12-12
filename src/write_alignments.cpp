@@ -29,7 +29,7 @@ void WriteReadToRef(const std::unordered_map<uint32_t, std::vector<uint16_t>> &r
       *out << ec.first << ' ';
       size_t n_reads = ec.second.size();
       for (size_t i = 0; i < n_reads; ++i) {
-	*out << i << (i == n_reads ? '\n' : ' ');
+	*out << ec.second[i] << (i == n_reads - 1 ? '\n' : ' ');
       }
     }
     out->flush();
