@@ -3,9 +3,8 @@
 #include <string>
 
 #include "cxxargs/include/cxxargs.hpp"
-
-#include "file.hpp"
-#include "log.hpp"
+#include "cxxio/file.hpp"
+#include "cxxio/log.hpp"
 
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);

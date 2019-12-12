@@ -1,5 +1,9 @@
-#ifndef TELESCOPE_LOG_HPP
-#define TELESCOPE_LOG_HPP
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+#ifndef CXXIO_LOG_HPP
+#define CXXIO_LOG_HPP
 
 #include <chrono>
 #include <fstream>
