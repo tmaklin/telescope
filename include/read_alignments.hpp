@@ -5,6 +5,6 @@
 
 #include "common.hpp"
 
-KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::istream* strand_1, std::istream* strand_2);
+KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*>* strands);
 
 #endif

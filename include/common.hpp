@@ -4,6 +4,7 @@
 #include <exception>
 #include <vector>
 #include <unordered_map>
+#include <chrono>
 
 enum Mode { m_unpaired, m_union, m_intersection };
 inline Mode get_mode(const std::string &mode_str) {
@@ -30,6 +31,18 @@ struct ec_info {
 
 struct KAlignment {
   // Kallisto-style alignments
+  const uint32_t n_bootstraps = 0;
+  const double p_pseudoaligned = 0.0;
+  const double p_unique = 0.0;
+  const std::string kallisto_version = "0.45.0";
+  const std::string index_version = "0";
+  const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  uint32_t n_targets;
+  uint32_t n_processed;
+  uint32_t n_pseudoaligned;
+  uint32_t n_unique;
+  std::string call;
+
   std::unordered_map<std::vector<bool>, ec_info> ecs;
   std::unordered_map<uint32_t, std::vector<uint16_t>> read_to_ref;
 };

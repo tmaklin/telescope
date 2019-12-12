@@ -88,15 +88,23 @@ void ReadToRef(const std::unordered_map<uint32_t, ec_info> &ecs, std::unordered_
   }
 }
 
-KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::istream* strand_1, std::istream* strand_2) {
+// KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::istream* strand_1, std::istream* strand_2) {
+KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*>* strands) {
   std::unordered_map<uint32_t, ec_info> ecs_by_id;
   uint32_t max_read_id = 0;
-  read_alignments(mode, n_refs, strand_1, &ecs_by_id, &max_read_id);
-  read_alignments(mode, n_refs, strand_2, &ecs_by_id, &max_read_id);
+  for (size_t i = 0; i < strands->size(); ++i) {
+    read_alignments(mode, n_refs, strands->at(i), &ecs_by_id, &max_read_id);
+  }
 
   KAlignment alignments;
   ReadToRef(ecs_by_id, &alignments.read_to_ref);
   CompressAlignments(ecs_by_id, &alignments.ecs);
+
+  // Update the metadata
+  alignments.n_targets = n_refs;
+  alignments.n_processed = (mode == m_unpaired ? 2*max_read_id + 1 : max_read_id + 1);
+  alignments.n_pseudoaligned = ecs_by_id.size();
+  alignments.n_unique = alignments.ecs.size();
 
   return alignments;
 }
