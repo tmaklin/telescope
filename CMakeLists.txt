@@ -15,7 +15,26 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wno-sign-comp
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(include ${CMAKE_SOURCE_DIR}/external)
+## Get version number from git tags
+find_package(Git)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} describe --tags
+    WORKING_DIRECTORY "${local_dir}"
+    OUTPUT_VARIABLE TELESCOPE_BUILD_VERSION
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message( STATUS "telescope version: ${TELESCOPE_BUILD_VERSION}")
+else()
+  message(STATUS "GIT not found, version numbering disabled")
+  set(TELESCOPE_BUILD_VERSION "unknown")
+endif()
+string(TIMESTAMP TELESCOPE_BUILD_TIMESTAMP)
+## Generate a version.h file containing build version and timestamp
+configure_file(${CMAKE_SOURCE_DIR}/include/version.h.in ${CMAKE_BINARY_DIR}/include/version.h @ONLY)
+
+include_directories(include ${CMAKE_SOURCE_DIR}/external ${CMAKE_BINARY_DIR}/include)
 
 add_library(libtelescope ${CMAKE_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_SOURCE_DIR}/src/write_alignments.cpp)
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)

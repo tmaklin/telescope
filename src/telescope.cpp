@@ -24,6 +24,8 @@
 #include "cxxio/file.hpp"
 #include "cxxio/log.hpp"
 
+#include "version.h"
+
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);
 }
@@ -44,7 +46,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, File::Out &log
 
 int main(int argc, char* argv[]) {
   Log log(std::cerr, !CmdOptionPresent(argv, argv+argc, "--silent"));
-  cxxargs::Arguments args("telescope", "Usage: telescope -r <strand_1>,<strand_2> -o <output prefix> --mode <merge mode> --n-refs <number of references>");
+  cxxargs::Arguments args("telescope-" + std::string(TELESCOPE_BUILD_VERSION), "Usage: telescope -r <strand_1>,<strand_2> -o <output prefix> --mode <merge mode> --n-refs <number of references>");
   log << args.get_program_name() + '\n';
   try {
     log << "Parsing arguments\n";
