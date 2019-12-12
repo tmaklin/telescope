@@ -19,6 +19,7 @@
 #include "telescope.hpp"
 
 #include <string>
+#include <algorithm>
 
 #include "cxxargs/include/cxxargs.hpp"
 #include "cxxio/file.hpp"
