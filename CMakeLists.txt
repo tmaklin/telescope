@@ -32,12 +32,12 @@ else()
 endif()
 string(TIMESTAMP TELESCOPE_BUILD_TIMESTAMP)
 ## Generate a version.h file containing build version and timestamp
-configure_file(${CMAKE_SOURCE_DIR}/include/version.h.in ${CMAKE_BINARY_DIR}/include/version.h @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/version.h @ONLY)
 
-include_directories(include ${CMAKE_SOURCE_DIR}/external ${CMAKE_BINARY_DIR}/include)
+include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-add_library(libtelescope ${CMAKE_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_SOURCE_DIR}/src/write_alignments.cpp)
+add_library(libtelescope ${CMAKE_CURRENT_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp)
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 
-add_executable(telescope ${CMAKE_SOURCE_DIR}/src/telescope.cpp)
+add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 target_link_libraries(telescope libtelescope z)
