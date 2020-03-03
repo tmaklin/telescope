@@ -36,7 +36,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in ${CMAKE_CURRENT_
 
 include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-add_library(libtelescope ${CMAKE_CURRENT_SOURCE_DIR}/src/read_alignments.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp)
+add_library(libtelescope
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_alignments.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp)
+
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 
 add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)

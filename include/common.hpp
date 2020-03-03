@@ -47,6 +47,11 @@ struct ec_info {
   uint16_t last_val = 0;
 };
 
+struct CompressedAlignment {
+  std::vector<std::vector<bool>> ec_configs;
+  std::vector<uint32_t> ec_counts;
+};
+
 struct KAlignment {
   // Kallisto-style alignments
   const uint32_t n_bootstraps = 0;

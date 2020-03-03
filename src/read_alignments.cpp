@@ -23,6 +23,8 @@
 #include <sstream>
 #include <exception>
 
+#include "read_themisto_alignments.hpp"
+
 void insert_read(const std::vector<bool> &alignment, const uint16_t cluster_id, const uint32_t read_id, std::unordered_map<uint32_t, ec_info>* reads) {
   ec_info info;
   info.pseudoalignment = alignment;
@@ -61,7 +63,7 @@ void read_alignments(const Mode &mode, const uint32_t n_refs, std::istream *stre
     while (getline(partition, part, ' ')) {
       cluster_id = std::stoul(part);
       alignment[cluster_id] = true;
-      any_aligned = true;
+      any_aligned = true; // Could read in the alignments directly here
     }
     if (any_aligned) {
       if (reads->find(read_id) == reads->end()) {
@@ -106,6 +108,12 @@ void ReadToRef(const std::unordered_map<uint32_t, ec_info> &ecs, std::unordered_
   }
 }
 
+CompressedAlignment ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &strands) {
+  CompressedAlignment aln;
+  ReadThemistoFiles(mode, n_refs, strands, &aln.ec_counts, &aln.ec_configs);
+  return aln;
+}
+
 // KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::istream* strand_1, std::istream* strand_2) {
 KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*>* strands) {
   std::unordered_map<uint32_t, ec_info> ecs_by_id;
@@ -123,6 +131,5 @@ KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<s
   alignments.n_processed = (mode == m_unpaired ? 2*max_read_id + 1 : max_read_id + 1);
   alignments.n_pseudoaligned = ecs_by_id.size();
   alignments.n_unique = alignments.ecs.size();
-
   return alignments;
 }
