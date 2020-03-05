@@ -80,12 +80,12 @@ void CompressAlignment(std::vector<std::vector<bool>> &ec_configs, std::vector<u
   }
 }
 
-void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<uint32_t> *ec_counts, std::vector<std::vector<bool>> *compressed_ec_configs) {
+void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   std::vector<std::vector<bool>> ec_configs;
   if (mode == m_intersection) {
     ReadIntersection(n_refs, streams, &ec_configs);
   } else if (mode == m_union) {
     ReadUnion(n_refs, streams, &ec_configs);
   }
-  CompressAlignment(ec_configs, ec_counts, compressed_ec_configs);
+  CompressAlignment(ec_configs, &aln->ec_counts, &aln->ec_configs);
 }

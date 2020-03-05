@@ -24,6 +24,7 @@
 #include <exception>
 
 #include "read_themisto_alignments.hpp"
+#include "read_kallisto_alignments.hpp"
 
 void insert_read(const std::vector<bool> &alignment, const uint16_t cluster_id, const uint32_t read_id, std::unordered_map<uint32_t, ec_info>* reads) {
   ec_info info;
@@ -106,12 +107,6 @@ void ReadToRef(const std::unordered_map<uint32_t, ec_info> &ecs, std::unordered_
       }
     }
   }
-}
-
-CompressedAlignment ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &strands) {
-  CompressedAlignment aln;
-  ReadThemistoFiles(mode, n_refs, strands, &aln.ec_counts, &aln.ec_configs);
-  return aln;
 }
 
 // KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::istream* strand_1, std::istream* strand_2) {

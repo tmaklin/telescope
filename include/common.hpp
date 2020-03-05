@@ -52,6 +52,24 @@ struct CompressedAlignment {
   std::vector<uint32_t> ec_counts;
 };
 
+class KallistoAlignment {
+private:
+  CompressedAlignment aln;
+  std::vector<uint32_t> ec_ids;
+public:
+  void clear_ids() { ec_ids.clear(); }
+  inline uint32_t size() { return this->aln.ec_configs.size(); }
+  inline uint32_t n_targets() { return this->aln.ec_configs.at(0).size(); }
+
+  inline const std::vector<uint32_t>& get_ec_ids() const { return this->ec_ids; }
+  inline const std::vector<uint32_t>& get_ec_counts() const { return this->aln.ec_counts; }
+  inline const std::vector<std::vector<bool>>& get_ec_configs() const { return this->aln.ec_configs; }
+  inline CompressedAlignment* access_aln() { return &this->aln; }
+  inline std::vector<uint32_t>* access_ec_ids() { return &this->ec_ids; }
+  inline std::vector<std::vector<bool>>* access_ec_configs() { return &this->aln.ec_configs; }
+  inline std::vector<uint32_t>* access_ec_counts() { return &this->aln.ec_counts; }
+};
+
 struct KAlignment {
   // Kallisto-style alignments
   const uint32_t n_bootstraps = 0;
