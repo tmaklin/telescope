@@ -67,7 +67,7 @@ void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istrea
   ReadEcs(ec_ids, n_refs, ec_file, &aln->ec_configs);
 }
 
-void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln) {
-  ReadAlignmentCounts(tsv_file, aln->access_ec_ids(), aln->access_ec_counts());
-  ReadEcs(aln->get_ec_ids(), n_refs, ec_file, aln->access_ec_configs());
+void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
+  ReadAlignmentCounts(tsv_file, &kaln->ec_ids, &kaln->aln.ec_counts);
+  ReadEcs(kaln->ec_ids, n_refs, ec_file, &kaln->aln.ec_configs);
 }

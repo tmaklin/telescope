@@ -89,3 +89,13 @@ void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std:
   }
   CompressAlignment(ec_configs, &aln->ec_counts, &aln->ec_configs);
 }
+
+void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *kaln) {
+  ReadThemistoFiles(mode, n_refs, streams, &kaln->aln);
+  uint32_t num_ecs = kaln->size();
+  kaln->ec_ids.resize(num_ecs, 0);
+#pragma omp parallel for schedule(static)
+  for (uint32_t i = 0; i < num_ecs; ++i) {
+    kaln->ec_ids[i] = i;
+  }
+}
