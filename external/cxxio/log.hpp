@@ -13,11 +13,9 @@
 #include "file.hpp"
 
 class Log : public File::Out {
- private:
-  std::chrono::time_point<std::chrono::system_clock> start_time;
-
  public:
   bool verbose;
+  std::chrono::time_point<std::chrono::system_clock> start_time;
 
   Log(std::ostream &stream, bool verbose = true) : File::Out(stream), verbose(verbose) {
     start_time = std::chrono::system_clock::now();

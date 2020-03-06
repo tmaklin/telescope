@@ -25,11 +25,9 @@
 #include "read_kallisto_alignments.hpp"
 #include "read_themisto_alignments.hpp"
 
-KAlignment ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*>* strands);
 inline void ReadThemisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &strands, CompressedAlignment* aln) { ReadThemistoFiles(mode, n_refs, strands, aln); }
+inline void ReadThemisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *aln) { ReadThemistoFiles(mode, n_refs, streams, aln); }
 inline void ReadKallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln) { ReadKallistoFiles(n_refs, ec_file, tsv_file, aln); }
 inline void ReadKallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln) { ReadKallistoFiles(n_refs, ec_file, tsv_file, aln); }
-
-inline void ReadThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) { ThemistoToKallisto(mode, n_refs, streams, aln); }
 
 #endif

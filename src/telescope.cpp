@@ -67,24 +67,27 @@ int main(int argc, char* argv[]) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
     infile_ptrs.at(i) = &infiles.at(i).stream();
   }
-  KAlignment alignments = ReadAlignments(args.value<Mode>("mode"), args.value<uint32_t>("n-refs"), &infile_ptrs);
-  alignments.call = "";
+  ThemistoAlignment alignments;
+  ReadThemisto(args.value<Mode>("mode"), args.value<uint32_t>("n-refs"), infile_ptrs, &alignments);
+  KallistoRunInfo run_info(alignments);
+  run_info.call = "";
+  run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
   for (size_t i = 0; i < argc; ++i) {
-    alignments.call += argv[i];
-    alignments.call += (i == argc - 1 ? "" : " ");
+    run_info.call += argv[i];
+    run_info.call += (i == argc - 1 ? "" : " ");
   }
 
   log << "Writing converted alignments\n";
   File::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
   File::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
-  WriteAlignments(alignments.ecs, &ec_file.stream(), &tsv_file.stream());
+  WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
 
   log << "Writing read assignments to equivalence classes\n";
   File::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
-  WriteReadToRef(alignments.read_to_ref, &read_to_ref_file.stream());
+  WriteReadToRef(alignments, &read_to_ref_file.stream());
 
   File::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
-  WriteRunInfo(alignments, &run_info_file.stream());
+  WriteRunInfo(run_info, 4, &run_info_file.stream());
 
   log << "Done\n";
   log.flush();
