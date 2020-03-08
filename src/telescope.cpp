@@ -18,6 +18,8 @@
 
 #include "telescope.hpp"
 
+#include <dirent.h>
+
 #include <string>
 #include <algorithm>
 
@@ -52,6 +54,12 @@ int main(int argc, char* argv[]) {
   try {
     log << "Parsing arguments\n";
     parse_args(argc, argv, args, log);
+    DIR* dir = opendir(args.value<std::string>('o').c_str());
+    if (dir) {
+      closedir(dir);
+    } else {
+      throw std::runtime_error("Directory " + args.value<std::string>('o') + " does not seem to exist.");
+    }
   } catch (std::exception &e) {
     log.verbose = true;
     log << "Parsing arguments failed:\n"
