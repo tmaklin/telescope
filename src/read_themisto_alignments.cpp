@@ -142,6 +142,14 @@ void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std:
   aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
 }
 
+void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
+  aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
+  aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
+  for (uint32_t i = 0; i < aln->size(); ++i) {
+    aln->ec_ids.emplace_back(i);
+  }
+}
+
 void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   std::vector<uint32_t> aligned_reads_ids;
   taln->n_processed = ReadAlignments(mode, n_refs, streams, &taln->ec_configs, &aligned_reads_ids);
