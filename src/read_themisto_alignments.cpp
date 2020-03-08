@@ -43,12 +43,14 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
 	proposed_ecs[i][std::stoul(part)] = true;
       }
     }
-    bool any_aligned = false;
     for (uint8_t i = 0; i < n_streams; ++i) {
       for (uint32_t j = 0; j < n_refs; ++j) {
 	(*current_ec)[j] = (mode == m_intersection ? ((*current_ec)[j] && proposed_ecs[i][j]) : ((*current_ec)[j] || proposed_ecs[i][j]));
-	any_aligned = (*current_ec)[j] || any_aligned;
       }
+    }
+    bool any_aligned = false;
+    for (uint32_t j = 0; j < n_refs; ++j) {
+      any_aligned = (*current_ec)[j] || any_aligned;
     }
     if (!any_aligned) {
       ec_configs->pop_back();
@@ -82,12 +84,14 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
 	proposed_ecs[i][std::stoul(part)] = true;
       }
     }
-    bool any_aligned = false;
     for (uint8_t i = 0; i < n_streams; ++i) {
       for (uint32_t j = 0; j < n_refs; ++j) {
 	(*current_ec)[j] = (mode == m_intersection ? ((*current_ec)[j] && proposed_ecs[i][j]) : ((*current_ec)[j] || proposed_ecs[i][j]));
-	any_aligned = (*current_ec)[j] || any_aligned;
       }
+    }
+    bool any_aligned = false;
+    for (uint32_t j = 0; j < n_refs; ++j) {
+      any_aligned = (*current_ec)[j] || any_aligned;
     }
     if (!any_aligned) {
       ec_configs->pop_back();
