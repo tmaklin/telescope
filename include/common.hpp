@@ -23,6 +23,9 @@
 #include <vector>
 #include <unordered_map>
 #include <chrono>
+#include <iomanip>
+#include <iostream>
+#include <algorithm>
 
 enum Mode { m_unpaired, m_union, m_intersection };
 inline Mode get_mode(const std::string &mode_str) {
@@ -41,33 +44,58 @@ namespace cxxargs {
   }
 }
 
-struct ec_info {
-  std::vector<bool> pseudoalignment;
-  uint32_t count = 0;
-  uint16_t last_val = 0;
-};
-
 struct CompressedAlignment {
   std::vector<std::vector<bool>> ec_configs;
   std::vector<uint32_t> ec_counts;
+
+  uint32_t n_processed;
+
+  const uint32_t size() const { return ec_configs.size(); }
+  const uint32_t n_targets() const { return ec_configs.at(0).size(); }
 };
 
-struct KAlignment {
-  // Kallisto-style alignments
-  const uint32_t n_bootstraps = 0;
-  const double p_pseudoaligned = 0.0;
-  const double p_unique = 0.0;
-  const std::string kallisto_version = "0.45.0";
-  const std::string index_version = "0";
-  const std::time_t start_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+struct KallistoRunInfo {
+  KallistoRunInfo() = default;
+  KallistoRunInfo(uint32_t n_targets, uint32_t n_processed, uint32_t n_pseudoaligned) :
+    n_targets(n_targets), n_processed(n_processed), n_pseudoaligned(n_pseudoaligned), p_pseudoaligned(((double)n_pseudoaligned/n_processed)*100) {};
+  KallistoRunInfo(const CompressedAlignment &aln) {
+    n_targets = aln.n_targets();
+    n_processed = aln.n_processed;
+    n_pseudoaligned = 0;
+    n_unique = 0;
+    for (uint32_t i = 0; i < aln.size(); ++i) {
+      n_unique += (aln.ec_counts[i] == 1);
+      n_pseudoaligned += aln.ec_counts[i];
+    }
+    p_unique = (double)n_unique/n_processed;
+    p_pseudoaligned = (double)n_pseudoaligned/n_processed;
+  }
+
   uint32_t n_targets;
+  uint32_t n_bootstraps = 0;
   uint32_t n_processed;
   uint32_t n_pseudoaligned;
   uint32_t n_unique;
+  double p_pseudoaligned;
+  double p_unique;
+  std::string kallisto_version = "0.45.0";
+  std::string index_version = "0";
+  std::time_t start_time;
   std::string call;
+};
 
-  std::unordered_map<std::vector<bool>, ec_info> ecs;
-  std::unordered_map<uint32_t, std::vector<uint16_t>> read_to_ref;
+
+struct KallistoAlignment : public CompressedAlignment{
+  std::vector<uint32_t> ec_ids;
+  KallistoRunInfo run_info;
+
+  void fill_info() {
+    run_info = KallistoRunInfo(n_targets(), n_processed, size());
+  }
+};
+
+struct ThemistoAlignment : public CompressedAlignment{
+  std::vector<std::vector<uint32_t>> aligned_reads;
 };
 
 #endif
