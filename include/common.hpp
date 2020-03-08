@@ -63,7 +63,6 @@ struct KallistoRunInfo {
     n_processed = aln.n_processed;
     n_pseudoaligned = 0;
     n_unique = 0;
-#pragma omp parallel for schedule(static) reduction(+:n_pseudoaligned) reduction(+:n_unique)
     for (uint32_t i = 0; i < aln.size(); ++i) {
       n_unique += (aln.ec_counts[i] == 1);
       n_pseudoaligned += aln.ec_counts[i];
