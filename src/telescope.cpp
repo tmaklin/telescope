@@ -23,7 +23,7 @@
 #include <string>
 #include <algorithm>
 
-#include "cxxargs/include/cxxargs.hpp"
+#include "cxxargs.hpp"
 #include "cxxio/file.hpp"
 #include "cxxio/log.hpp"
 

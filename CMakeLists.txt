@@ -46,7 +46,6 @@ endif()
 ## bxzstr
 if (DEFINED CMAKE_BXZSTR_HEADERS)
   message(STATUS "bxzstr headers provided in: ${CMAKE_BXZSTR_HEADERS}")
-  ##include_directories("${CMAKE_BXZSTR_HEADERS}")
 else()
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-bxzstr.txt.in ${CMAKE_BINARY_DIR}/external/bxzstr-download/CMakeLists.txt)
   execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -61,11 +60,30 @@ else()
   if(result)
     message(FATAL_ERROR "Build step for bxzstr failed: ${result}")
   endif()
-  ## include_directories(${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
   set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
 endif()
 
-include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS})
+## cxxargs
+if (DEFINED CMAKE_CXXARGS_HEADERS)
+  message(STATUS "cxxargs headers provided in: ${CMAKE_CXXARGS_HEADERS}")
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-cxxargs.txt.in ${CMAKE_BINARY_DIR}/external/cxxargs-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for cxxargs failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
+  if(result)
+    message(FATAL_ERROR "Build step for cxxargs failed: ${result}")
+  endif()
+  set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
+endif()
+
+include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)
