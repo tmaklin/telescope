@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
   KallistoRunInfo run_info(alignments);
   run_info.call = "";
   run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
-  for (size_t i = 0; i < argc; ++i) {
+  for (int i = 0; i < argc; ++i) {
     run_info.call += argv[i];
     run_info.call += (i == argc - 1 ? "" : " ");
   }
