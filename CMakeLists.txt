@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 2.8.12)
 project (telescope)
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
@@ -10,10 +10,87 @@ find_package(ZLIB REQUIRED)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release) ## Build Release by default
 endif()
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wno-sign-compare -g")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic -g")
 
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
+## Set C++11 support depending on cmake version
+if (${CMAKE_MAJOR_VERSION} GREATER 2 AND ${CMAKE_MINOR_VERSION} GREATER 0)
+  set (CMAKE_CXX_STANDARD 11)
+  set (CMAKE_CXX_STANDARD_REQUIRED ON)
+else()
+  add_compile_options(-std=c++11)
+endif()
+
+## telescope library
+add_library(libtelescope
+${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_kallisto_alignments.cpp)
+
+set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
+
+## telescope executable
+add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
+
+## Check supported compression types
+find_package(BZip2)
+if (BZIP2_FOUND)
+  include_directories(${BZIP2_INCLUDE_DIRS})
+  target_link_libraries(telescope libtelescope ${BZIP2_LIBRARIES})
+endif()
+find_package(LibLZMA)
+if (LIBLZMA_FOUND)
+  include_directories(${LIBLZMA_INCLUDE_DIRS})
+  target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARIES})
+endif()
+find_package(ZLIB)
+if (ZLIB_FOUND)
+  include_directories(${ZLIB_INCLUDE_DIRS})
+  target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
+endif()
+
+## Check dependencies and download them if not found
+
+## bxzstr
+if (DEFINED CMAKE_BXZSTR_HEADERS)
+  message(STATUS "bxzstr headers provided in: ${CMAKE_BXZSTR_HEADERS}")
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-bxzstr.txt.in ${CMAKE_BINARY_DIR}/external/bxzstr-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bxzstr-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for bxzstr failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bxzstr-download )
+  if(result)
+    message(FATAL_ERROR "Build step for bxzstr failed: ${result}")
+  endif()
+  set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
+endif()
+
+## cxxargs
+if (DEFINED CMAKE_CXXARGS_HEADERS)
+  message(STATUS "cxxargs headers provided in: ${CMAKE_CXXARGS_HEADERS}")
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-cxxargs.txt.in ${CMAKE_BINARY_DIR}/external/cxxargs-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for cxxargs failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
+  if(result)
+    message(FATAL_ERROR "Build step for cxxargs failed: ${result}")
+  endif()
+  set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
+endif()
+
+include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)
@@ -33,15 +110,3 @@ endif()
 string(TIMESTAMP TELESCOPE_BUILD_TIMESTAMP)
 ## Generate a version.h file containing build version and timestamp
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/version.h @ONLY)
-
-include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include)
-
-add_library(libtelescope
-${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_kallisto_alignments.cpp)
-
-set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
-
-add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
-target_link_libraries(telescope libtelescope z)

@@ -50,8 +50,8 @@ struct CompressedAlignment {
 
   uint32_t n_processed;
 
-  const uint32_t size() const { return ec_configs.size(); }
-  const uint32_t n_targets() const { return ec_configs.at(0).size(); }
+  uint32_t size() const { return ec_configs.size(); }
+  uint32_t n_targets() const { return ec_configs.at(0).size(); }
 };
 
 struct KallistoRunInfo {
