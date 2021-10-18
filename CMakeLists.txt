@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 2.8.12)
 project (telescope)
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
@@ -12,9 +12,15 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic -g")
 
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
+## Set C++11 support depending on cmake version
+if (${CMAKE_MAJOR_VERSION} GREATER 2 AND ${CMAKE_MINOR_VERSION} GREATER 0)
+  set (CMAKE_CXX_STANDARD 11)
+  set (CMAKE_CXX_STANDARD_REQUIRED ON)
+else()
+  add_compile_options(-std=c++11)
+endif()
 
+## telescope library
 add_library(libtelescope
 ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp
@@ -22,6 +28,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/src/read_kallisto_alignments.cpp)
 
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 
+## telescope executable
 add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 
 ## Check supported compression types
