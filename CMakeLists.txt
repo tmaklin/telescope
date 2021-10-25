@@ -90,7 +90,29 @@ else()
   set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
 endif()
 
-include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/external ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS})
+
+## cxxio
+if (DEFINED CMAKE_CXXIO_HEADERS)
+  message(STATUS "cxxio headers provided in: ${CMAKE_CXXIO_HEADERS}")
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-cxxio.txt.in ${CMAKE_BINARY_DIR}/external/cxxio-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxio-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for cxxio failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxio-download )
+  if(result)
+    message(FATAL_ERROR "Build step for cxxio failed: ${result}")
+  endif()
+  set(CMAKE_CXXIO_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxio/include)
+endif()
+include_directories("${CMAKE_CXXIO_HEADERS}")
+
+include_directories(include ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)

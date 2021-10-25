@@ -10,14 +10,14 @@
 #include <exception>
 #include <string>
 
-#include "file.hpp"
+#include "cxxio.hpp"
 
-class Log : public File::Out {
+class Log : public cxxio::Out {
  public:
   bool verbose;
   std::chrono::time_point<std::chrono::system_clock> start_time;
 
-  Log(std::ostream &stream, bool verbose = true) : File::Out(stream), verbose(verbose) {
+  Log(std::ostream &stream, bool verbose = true) : cxxio::Out(stream), verbose(verbose) {
     start_time = std::chrono::system_clock::now();
   }
   void flush() {

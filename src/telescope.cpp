@@ -24,10 +24,10 @@
 #include <algorithm>
 
 #include "cxxargs.hpp"
-#include "cxxio/file.hpp"
-#include "cxxio/log.hpp"
+#include "cxxio.hpp"
 
 #include "version.h"
+#include "log.hpp"
 
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);
@@ -42,7 +42,7 @@ uint32_t CountLines(std::istream &stream) {
   return n_lines;
 }
 
-void parse_args(int argc, char* argv[], cxxargs::Arguments &args, File::Out &log) {
+void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &log) {
   args.add_short_argument<std::vector<std::string>>('r', "Themisto pseudoalignment(s)");
   args.add_short_argument<std::string>('o', "Output file directory.");
   // args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
   std::ifstream themisto_index(args.value<std::string>("index") + "/coloring-names.txt");
   uint32_t n_refs = CountLines(themisto_index);
   log << "Reading Themisto alignments\n";
-  std::vector<File::In> infiles(args.value<std::vector<std::string>>('r').size());
+  std::vector<cxxio::In> infiles(args.value<std::vector<std::string>>('r').size());
   std::vector<std::istream*> infile_ptrs(infiles.size());
   for (size_t i = 0; i < args.value<std::vector<std::string>>('r').size(); ++i) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
@@ -105,15 +105,15 @@ int main(int argc, char* argv[]) {
   }
 
   log << "Writing converted alignments\n";
-  File::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
-  File::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
+  cxxio::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
+  cxxio::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
   WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
 
   log << "Writing read assignments to equivalence classes\n";
-  File::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
+  cxxio::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
   WriteReadToRef(alignments, &read_to_ref_file.stream());
 
-  File::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
+  cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
   WriteRunInfo(run_info, 4, &run_info_file.stream());
 
   log << "Done\n";
