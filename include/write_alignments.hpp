@@ -20,6 +20,7 @@
 #define TELESCOPE_WRITE_ALIGNMENTS_HPP
 
 #include <fstream>
+#include <cstddef>
 
 #include "common.hpp"
 

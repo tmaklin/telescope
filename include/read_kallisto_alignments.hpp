@@ -1,8 +1,8 @@
 #ifndef TELESCOPE_READ_KALLISTO_ALIGNMENTS_HPP
 #define TELESCOPE_READ_KALLISTO_ALIGNMENTS_HPP
 
+#include <cstddef>
 #include <fstream>
-#include <vector>
 
 #include "common.hpp"
 

@@ -19,6 +19,7 @@
 #include "telescope.hpp"
 
 #include <string>
+#include <algorithm>
 #include <vector>
 #include <exception>
 #include <cstddef>

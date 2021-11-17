@@ -18,6 +18,7 @@
 
 #include "read_kallisto_alignments.hpp"
 
+#include <vector>
 #include <string>
 #include <sstream>
 

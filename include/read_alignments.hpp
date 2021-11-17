@@ -19,7 +19,9 @@
 #ifndef TELESCOPE_READ_ALIGNMENTS_HPP
 #define TELESCOPE_READ_ALIGNMENTS_HPP
 
+#include <vector>
 #include <fstream>
+#include <cstddef>
 
 #include "common.hpp"
 #include "read_kallisto_alignments.hpp"

@@ -19,13 +19,12 @@
 #ifndef TELESCOPE_COMMON_HPP
 #define TELESCOPE_COMMON_HPP
 
+#include <string>
 #include <exception>
 #include <vector>
-#include <unordered_map>
+#include <cstddef>
 #include <chrono>
-#include <iomanip>
 #include <iostream>
-#include <algorithm>
 
 namespace telescope {
 enum Mode { m_unpaired, m_union, m_intersection };

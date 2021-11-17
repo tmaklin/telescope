@@ -1,6 +1,7 @@
 #ifndef TELESCOPE_READ_THEMISTO_ALIGNMENTS_HPP
 #define TELESCOPE_READ_THEMISTO_ALIGNMENTS_HPP
 
+#include <cstddef>
 #include <vector>
 #include <fstream>
 

@@ -18,9 +18,9 @@
 
 #include "write_alignments.hpp"
 
-#include <exception>
-#include <iomanip>
-#include <chrono>
+#include <string>
+
+#include "common.hpp"
 
 namespace telescope {
 void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {

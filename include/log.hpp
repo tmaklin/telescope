@@ -7,8 +7,8 @@
 
 #include <chrono>
 #include <fstream>
-#include <exception>
 #include <string>
+#include <exception>
 
 #include "cxxio.hpp"
 
