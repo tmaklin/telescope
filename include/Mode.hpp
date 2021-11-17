@@ -16,18 +16,30 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#ifndef TELESCOPE_WRITE_ALIGNMENTS_HPP
-#define TELESCOPE_WRITE_ALIGNMENTS_HPP
+#ifndef TELESCOPE_MODE_HPP
+#define TELESCOPE_MODE_HPP
 
-#include <fstream>
-#include <cstddef>
-
-#include "common.hpp"
+#include <string>
+#include <exception>
+#include <iostream>
 
 namespace telescope {
-void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file);
-void WriteReadToRef(const ThemistoAlignment &aln, std::ostream* out);
-void WriteRunInfo(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out);
+enum Mode { m_unpaired, m_union, m_intersection };
+inline Mode get_mode(const std::string &mode_str) {
+    if (mode_str == "unpaired") return m_unpaired;
+    if (mode_str == "union") return m_union;
+    if (mode_str == "intersection") return m_intersection;
+    throw std::runtime_error("Unrecognized paired-end mode.");
+}
+}
+
+namespace cxxargs {
+  inline std::istream& operator>> (std::istream &in, telescope::Mode &t) {
+    std::string in_val;
+    in >> in_val;
+    t = telescope::get_mode(in_val);
+    return in;
+  }
 }
 
 #endif

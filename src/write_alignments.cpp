@@ -16,11 +16,9 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#include "write_alignments.hpp"
+#include "telescope.hpp"
 
 #include <string>
-
-#include "common.hpp"
 
 namespace telescope {
 namespace write {

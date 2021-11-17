@@ -16,44 +16,16 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#ifndef TELESCOPE_COMMON_HPP
-#define TELESCOPE_COMMON_HPP
+#ifndef TELESCOPE_KALLISTO_RUN_INFO_HPP
+#define TELESCOPE_KALLISTO_RUN_INFO_HPP
 
-#include <string>
-#include <exception>
-#include <vector>
 #include <cstddef>
+#include <string>
 #include <chrono>
-#include <iostream>
+
+#include "Alignment.hpp"
 
 namespace telescope {
-enum Mode { m_unpaired, m_union, m_intersection };
-inline Mode get_mode(const std::string &mode_str) {
-    if (mode_str == "unpaired") return m_unpaired;
-    if (mode_str == "union") return m_union;
-    if (mode_str == "intersection") return m_intersection;
-    throw std::runtime_error("Unrecognized paired-end mode.");
-}
-
-struct CompressedAlignment {
-  std::vector<std::vector<bool>> ec_configs;
-  std::vector<uint32_t> ec_counts;
-
-  uint32_t n_processed;
-
-  uint32_t size() const { return ec_configs.size(); }
-  uint32_t n_targets() const { return ec_configs.at(0).size(); }
-};
-
-struct GroupedAlignment {
-  std::vector<std::vector<uint16_t>> ec_group_counts;
-  std::vector<uint32_t> ec_counts;
-
-  uint32_t n_processed;
-
-  uint32_t size() const { return ec_group_counts.size(); };
-};
-
 struct KallistoRunInfo {
   KallistoRunInfo() = default;
   KallistoRunInfo(uint32_t n_targets, uint32_t n_processed, uint32_t n_pseudoaligned) :
@@ -84,7 +56,6 @@ struct KallistoRunInfo {
   std::string call;
 };
 
-
 struct KallistoAlignment : public CompressedAlignment{
   std::vector<uint32_t> ec_ids;
   KallistoRunInfo run_info;
@@ -93,19 +64,6 @@ struct KallistoAlignment : public CompressedAlignment{
     run_info = KallistoRunInfo(n_targets(), n_processed, size());
   }
 };
-
-struct ThemistoAlignment : public CompressedAlignment{
-  std::vector<std::vector<uint32_t>> aligned_reads;
-};
-}
-
-namespace cxxargs {
-  inline std::istream& operator>> (std::istream &in, telescope::Mode &t) {
-    std::string in_val;
-    in >> in_val;
-    t = telescope::get_mode(in_val);
-    return in;
-  }
 }
 
 #endif

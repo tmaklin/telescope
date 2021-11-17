@@ -16,13 +16,11 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#include "read_kallisto_alignments.hpp"
+#include "telescope.hpp"
 
 #include <vector>
 #include <string>
 #include <sstream>
-
-#include "common.hpp"
 
 namespace telescope {
 void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {

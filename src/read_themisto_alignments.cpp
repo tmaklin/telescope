@@ -16,13 +16,11 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#include "read_themisto_alignments.hpp"
+#include "telescope.hpp"
 
 #include <string>
 #include <sstream>
 #include <unordered_map>
-
-#include "common.hpp"
 
 namespace telescope {
 uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs) {

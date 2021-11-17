@@ -19,8 +19,13 @@
 #ifndef TELESCOPE_TELESCOPE_HPP
 #define TELESCOPE_TELESCOPE_HPP
 
-#include "write_alignments.hpp"
-#include "common.hpp"
+#include <cstddef>
+#include <vector>
+#include <fstream>
+
+#include "Mode.hpp"
+#include "Alignment.hpp"
+#include "KallistoAlignment.hpp"
 
 namespace telescope {
 namespace read {
@@ -35,6 +40,12 @@ void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std
 void Kallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln);
 // Also read the equivalence class IDs
 void KallistoEcIds(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln);
+}
+
+namespace write {
+void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file);
+void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out);
+void KallistoInfoFile(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out);
 }
 }
 
