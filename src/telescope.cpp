@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
     infile_ptrs.at(i) = &infiles.at(i).stream();
   }
   telescope::ThemistoAlignment alignments;
-  telescope::ReadThemisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs, &alignments);
+  telescope::read::Themisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs, &alignments);
 
   telescope::KallistoRunInfo run_info(alignments);
   run_info.call = "";

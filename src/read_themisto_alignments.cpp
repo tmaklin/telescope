@@ -64,7 +64,7 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
   return n_reads;
 }
 
-uint32_t ReadGroupAlignments(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, std::vector<std::vector<uint16_t>> *ec_group_counts, std::vector<uint32_t> *ec_counts) {
+uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, std::vector<std::vector<uint16_t>> *ec_group_counts, std::vector<uint32_t> *ec_counts) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
@@ -115,7 +115,7 @@ uint32_t ReadGroupAlignments(const Mode &mode, const std::vector<uint16_t> &grou
   return n_reads;
 }
 
-uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs, std::vector<uint32_t> *aligned_reads) {
+uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs, std::vector<uint32_t> *aligned_reads) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
@@ -176,7 +176,7 @@ std::vector<std::vector<bool>> CompressAlignment(const std::vector<std::vector<b
   return compressed_ec_configs;
 }
 
-std::vector<std::vector<bool>> CompressAlignment(const std::vector<uint32_t> &read_ids, const std::vector<std::vector<bool>> &ec_configs, std::vector<uint32_t> *ec_counts, std::vector<std::vector<uint32_t>> *aln_reads) {
+std::vector<std::vector<bool>> CompressAndAssign(const std::vector<uint32_t> &read_ids, const std::vector<std::vector<bool>> &ec_configs, std::vector<uint32_t> *ec_counts, std::vector<std::vector<uint32_t>> *aln_reads) {
   // Compress the alignment into equivalence classes and store the read assignments to equivalence classes
   std::vector<std::vector<bool>> compressed_ec_configs;
   uint32_t num_alns = ec_configs.size();
@@ -197,18 +197,26 @@ std::vector<std::vector<bool>> CompressAlignment(const std::vector<uint32_t> &re
   return compressed_ec_configs;
 }
 
-void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
+namespace read {
+void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
   aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
   aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
 }
 
-void ReadThemistoFiles(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
+void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
   // Read in group counts
-  aln->n_processed = ReadGroupAlignments(mode, group_indicators, n_refs, n_groups, streams, &aln->ec_group_counts, &aln->ec_counts);
+  aln->n_processed = ReadGroupedAlignments(mode, group_indicators, n_refs, n_groups, streams, &aln->ec_group_counts, &aln->ec_counts);
 }
 
-void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
+void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
+  // Read in the ec_configs and assign reads to equivalence classes
+  std::vector<uint32_t> aligned_reads_ids;
+  taln->n_processed = ReadAndAssign(mode, n_refs, streams, &taln->ec_configs, &aligned_reads_ids);
+  taln->ec_configs = CompressAndAssign(aligned_reads_ids, taln->ec_configs, &taln->ec_counts, &taln->aligned_reads);
+}
+
+void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
   // Read in the ec_configs and fill the ec_ids vector
   aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
   aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
@@ -216,11 +224,5 @@ void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std:
     aln->ec_ids.emplace_back(i);
   }
 }
-
-void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
-  // Read in the ec_configs and assign reads to equivalence classes
-  std::vector<uint32_t> aligned_reads_ids;
-  taln->n_processed = ReadAlignments(mode, n_refs, streams, &taln->ec_configs, &aligned_reads_ids);
-  taln->ec_configs = CompressAlignment(aligned_reads_ids, taln->ec_configs, &taln->ec_counts, &taln->aligned_reads);
 }
 }
