@@ -45,6 +45,15 @@ struct CompressedAlignment {
   uint32_t n_targets() const { return ec_configs.at(0).size(); }
 };
 
+struct GroupedAlignment {
+  std::vector<std::vector<uint16_t>> ec_group_counts;
+  std::vector<uint32_t> ec_counts;
+
+  uint32_t n_processed;
+
+  uint32_t size() const { return ec_group_counts.size(); };
+};
+
 struct KallistoRunInfo {
   KallistoRunInfo() = default;
   KallistoRunInfo(uint32_t n_targets, uint32_t n_processed, uint32_t n_pseudoaligned) :
