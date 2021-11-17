@@ -19,8 +19,23 @@
 #ifndef TELESCOPE_TELESCOPE_HPP
 #define TELESCOPE_TELESCOPE_HPP
 
-#include "read_alignments.hpp"
 #include "write_alignments.hpp"
 #include "common.hpp"
+
+namespace telescope {
+namespace read {
+// Themisto input
+void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln);
+void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln);
+void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *aln);
+void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln);
+
+// Kallisto input
+// Read pseudoalignments and counts
+void Kallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln);
+// Also read the equivalence class IDs
+void KallistoEcIds(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln);
+}
+}
 
 #endif

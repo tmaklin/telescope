@@ -103,14 +103,14 @@ int main(int argc, char* argv[]) {
   log << "Writing converted alignments\n";
   cxxio::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
   cxxio::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
-  telescope::WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
+  telescope::write::ThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
 
   log << "Writing read assignments to equivalence classes\n";
   cxxio::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
-  telescope::WriteReadToRef(alignments, &read_to_ref_file.stream());
+  telescope::write::ThemistoReadAssignments(alignments, &read_to_ref_file.stream());
 
   cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
-  telescope::WriteRunInfo(run_info, 4, &run_info_file.stream());
+  telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
 
   log << "Done\n";
   log.flush();
