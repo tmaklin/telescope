@@ -21,6 +21,7 @@
 #include <string>
 #include <sstream>
 
+namespace telescope {
 uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
@@ -158,4 +159,5 @@ void ReadThemistoFiles(const Mode &mode, const uint32_t n_refs, std::vector<std:
   std::vector<uint32_t> aligned_reads_ids;
   taln->n_processed = ReadAlignments(mode, n_refs, streams, &taln->ec_configs, &aligned_reads_ids);
   taln->ec_configs = CompressAlignment(aligned_reads_ids, taln->ec_configs, &taln->ec_counts, &taln->aligned_reads);
+}
 }

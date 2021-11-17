@@ -12,6 +12,7 @@
 
 #include "cxxio.hpp"
 
+namespace telescope {
 class Log : public cxxio::Out {
  public:
   bool verbose;
@@ -45,6 +46,7 @@ Log& operator<<(Log &os, T t) {
     }
   }
   return os;
+}
 }
 
 #endif

@@ -23,6 +23,7 @@
 
 #include "common.hpp"
 
+namespace telescope {
 void ReadEcs(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {
   std::string line;
   
@@ -70,4 +71,5 @@ void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istrea
 void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
   ReadAlignmentCounts(tsv_file, &kaln->ec_ids, &kaln->ec_counts);
   ReadEcs(kaln->ec_ids, n_refs, ec_file, &kaln->ec_configs);
+}
 }

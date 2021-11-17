@@ -30,6 +30,7 @@
 #include "version.h"
 #include "log.hpp"
 
+namespace telescope {
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);
 }
@@ -40,7 +41,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
   args.set_not_required("n-refs");
   args.add_long_argument<std::string>("index", "Themisto pseudoalignment index directory");
-  args.add_long_argument<Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", m_unpaired);
+  args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
   args.add_long_argument<bool>("help", "Print the help message.", false);
   if (CmdOptionPresent(argv, argv+argc, "--help")) {
@@ -49,9 +50,10 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   }
   args.parse(argc, argv);
 }
+}
 
 int main(int argc, char* argv[]) {
-  Log log(std::cerr, !CmdOptionPresent(argv, argv+argc, "--silent"));
+  telescope::Log log(std::cerr, !telescope::CmdOptionPresent(argv, argv+argc, "--silent"));
   cxxargs::Arguments args("telescope-" + std::string(TELESCOPE_BUILD_VERSION), "Usage: telescope -r <strand_1>,<strand_2> -o <output prefix> --mode <merge mode> --index <Themisto index directory>");
   log << args.get_program_name() + '\n';
   try {
@@ -86,10 +88,10 @@ int main(int argc, char* argv[]) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
     infile_ptrs.at(i) = &infiles.at(i).stream();
   }
-  ThemistoAlignment alignments;
-  ReadThemisto(args.value<Mode>("mode"), n_refs, infile_ptrs, &alignments);
+  telescope::ThemistoAlignment alignments;
+  telescope::ReadThemisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs, &alignments);
 
-  KallistoRunInfo run_info(alignments);
+  telescope::KallistoRunInfo run_info(alignments);
   run_info.call = "";
   run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
   for (int i = 0; i < argc; ++i) {
@@ -100,14 +102,14 @@ int main(int argc, char* argv[]) {
   log << "Writing converted alignments\n";
   cxxio::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
   cxxio::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
-  WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
+  telescope::WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
 
   log << "Writing read assignments to equivalence classes\n";
   cxxio::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
-  WriteReadToRef(alignments, &read_to_ref_file.stream());
+  telescope::WriteReadToRef(alignments, &read_to_ref_file.stream());
 
   cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
-  WriteRunInfo(run_info, 4, &run_info_file.stream());
+  telescope::WriteRunInfo(run_info, 4, &run_info_file.stream());
 
   log << "Done\n";
   log.flush();

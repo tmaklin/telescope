@@ -22,6 +22,7 @@
 #include <iomanip>
 #include <chrono>
 
+namespace telescope {
 void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {
   uint32_t ec_id = 0;
   for (uint32_t i = 0; i < aln.size(); ++i) {
@@ -78,4 +79,5 @@ void WriteRunInfo(const KallistoRunInfo &run_info, const uint8_t indent_len, std
   *out << indent << "\"call\": \"" << run_info.call << '\"' << '\n';
   *out << "}" << '\n';
   out->flush();
+}
 }

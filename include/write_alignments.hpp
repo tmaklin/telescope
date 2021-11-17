@@ -23,8 +23,10 @@
 
 #include "common.hpp"
 
+namespace telescope {
 void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file);
 void WriteReadToRef(const ThemistoAlignment &aln, std::ostream* out);
 void WriteRunInfo(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out);
+}
 
 #endif

@@ -27,21 +27,13 @@
 #include <iostream>
 #include <algorithm>
 
+namespace telescope {
 enum Mode { m_unpaired, m_union, m_intersection };
 inline Mode get_mode(const std::string &mode_str) {
     if (mode_str == "unpaired") return m_unpaired;
     if (mode_str == "union") return m_union;
     if (mode_str == "intersection") return m_intersection;
     throw std::runtime_error("Unrecognized paired-end mode.");
-}
-
-namespace cxxargs {
-  inline std::istream& operator>> (std::istream &in, Mode &t) {
-    std::string in_val;
-    in >> in_val;
-    t = get_mode(in_val);
-    return in;
-  }
 }
 
 struct CompressedAlignment {
@@ -97,5 +89,15 @@ struct KallistoAlignment : public CompressedAlignment{
 struct ThemistoAlignment : public CompressedAlignment{
   std::vector<std::vector<uint32_t>> aligned_reads;
 };
+}
+
+namespace cxxargs {
+  inline std::istream& operator>> (std::istream &in, telescope::Mode &t) {
+    std::string in_val;
+    in >> in_val;
+    t = telescope::get_mode(in_val);
+    return in;
+  }
+}
 
 #endif
