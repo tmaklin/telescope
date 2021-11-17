@@ -18,10 +18,11 @@
 
 #include "telescope.hpp"
 
-#include <dirent.h>
-
 #include <string>
-#include <algorithm>
+#include <vector>
+#include <exception>
+#include <cstddef>
+#include <chrono>
 
 #include "cxxargs.hpp"
 #include "cxxio.hpp"
@@ -33,19 +34,11 @@ bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);
 }
 
-uint32_t CountLines(std::istream &stream) {
-  std::string line;
-  uint32_t n_lines = 0;
-  while(std::getline(stream, line)) {
-    ++n_lines;
-  }
-  return n_lines;
-}
-
 void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &log) {
   args.add_short_argument<std::vector<std::string>>('r', "Themisto pseudoalignment(s)");
   args.add_short_argument<std::string>('o', "Output file directory.");
-  // args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
+  args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
+  args.set_not_required("n-refs");
   args.add_long_argument<std::string>("index", "Themisto pseudoalignment index directory");
   args.add_long_argument<Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", m_unpaired);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
@@ -64,18 +57,10 @@ int main(int argc, char* argv[]) {
   try {
     log << "Parsing arguments\n";
     parse_args(argc, argv, args, log);
-    DIR* dir = opendir(args.value<std::string>('o').c_str());
-    if (dir) {
-      closedir(dir);
-    } else {
-      throw std::runtime_error("Directory " + args.value<std::string>('o') + " does not seem to exist.");
-    }
-    dir = opendir(args.value<std::string>("index").c_str());
-    if (dir) {
-      closedir(dir);
-    } else {
-      throw std::runtime_error("Themisto pseudoalignment index directory " + args.value<std::string>("index") + " does not seem to exist.");
-    }
+
+    // Check that the input directories  exist and are accessible
+    cxxio::directory_exists(args.value<std::string>('o'));
+    cxxio::directory_exists(args.value<std::string>("index"));
   } catch (std::exception &e) {
     log.verbose = true;
     log << "Parsing arguments failed:\n"
@@ -84,9 +69,16 @@ int main(int argc, char* argv[]) {
     log.flush();
     return 1;
   }
+
   log << "Counting pseudoalignment targets\n";
-  std::ifstream themisto_index(args.value<std::string>("index") + "/coloring-names.txt");
-  uint32_t n_refs = CountLines(themisto_index);
+  uint32_t n_refs;
+  if (!args.is_initialized("n-refs")) {
+    cxxio::In themisto_index(args.value<std::string>("index") + "/coloring-names.txt");
+    n_refs = themisto_index.count_lines<uint32_t>();
+  } else {
+    n_refs = args.value<uint32_t>("n-refs");
+  }
+
   log << "Reading Themisto alignments\n";
   std::vector<cxxio::In> infiles(args.value<std::vector<std::string>>('r').size());
   std::vector<std::istream*> infile_ptrs(infiles.size());
@@ -96,6 +88,7 @@ int main(int argc, char* argv[]) {
   }
   ThemistoAlignment alignments;
   ReadThemisto(args.value<Mode>("mode"), n_refs, infile_ptrs, &alignments);
+
   KallistoRunInfo run_info(alignments);
   run_info.call = "";
   run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
