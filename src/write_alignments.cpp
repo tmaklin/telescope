@@ -16,13 +16,13 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#include "write_alignments.hpp"
+#include "telescope.hpp"
 
-#include <exception>
-#include <iomanip>
-#include <chrono>
+#include <string>
 
-void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {
+namespace telescope {
+namespace write {
+void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {
   uint32_t ec_id = 0;
   for (uint32_t i = 0; i < aln.size(); ++i) {
     std::string aligneds("");
@@ -41,7 +41,7 @@ void WriteThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file
   tsv_file->flush();
 }
 
-void WriteReadToRef(const ThemistoAlignment &aln, std::ostream* out) {
+void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
   for (uint32_t i = 0; i < aln.size(); ++i) {
     for (uint32_t j = 0; j < aln.aligned_reads[i].size(); ++j) {
       *out << aln.aligned_reads[i][j] << ' ';
@@ -59,7 +59,7 @@ void WriteReadToRef(const ThemistoAlignment &aln, std::ostream* out) {
   out->flush();
 }
 
-void WriteRunInfo(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out) {
+void KallistoInfoFile(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out) {
   std::string indent;
   for (uint8_t i = 0; i < indent_len; ++i) {
     indent += " ";
@@ -79,3 +79,5 @@ void WriteRunInfo(const KallistoRunInfo &run_info, const uint8_t indent_len, std
   *out << "}" << '\n';
   out->flush();
 }
+} // namespace write
+} // namespace telescope

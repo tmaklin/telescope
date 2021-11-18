@@ -16,14 +16,14 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
 
-#include "read_kallisto_alignments.hpp"
+#include "telescope.hpp"
 
+#include <vector>
 #include <string>
 #include <sstream>
 
-#include "common.hpp"
-
-void ReadEcs(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {
+namespace telescope {
+void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {
   std::string line;
   
   uint32_t current_ec_pos = 0;
@@ -61,13 +61,16 @@ void ReadAlignmentCounts(std::istream &stream, std::vector<uint32_t> *ec_ids, st
   }
 }
 
-void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln) {
+namespace read {
+void Kallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln) {
   std::vector<uint32_t> ec_ids;
   ReadAlignmentCounts(tsv_file, &ec_ids, &aln->ec_counts);
-  ReadEcs(ec_ids, n_refs, ec_file, &aln->ec_configs);
+  ReadEquivalenceClasses(ec_ids, n_refs, ec_file, &aln->ec_configs);
 }
 
-void ReadKallistoFiles(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
+void KallistoEcIds(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
   ReadAlignmentCounts(tsv_file, &kaln->ec_ids, &kaln->ec_counts);
-  ReadEcs(kaln->ec_ids, n_refs, ec_file, &kaln->ec_configs);
+  ReadEquivalenceClasses(kaln->ec_ids, n_refs, ec_file, &kaln->ec_configs);
+}
+}
 }

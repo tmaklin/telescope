@@ -7,17 +7,18 @@
 
 #include <chrono>
 #include <fstream>
-#include <exception>
 #include <string>
+#include <exception>
 
-#include "file.hpp"
+#include "cxxio.hpp"
 
-class Log : public File::Out {
+namespace telescope {
+class Log : public cxxio::Out {
  public:
   bool verbose;
   std::chrono::time_point<std::chrono::system_clock> start_time;
 
-  Log(std::ostream &stream, bool verbose = true) : File::Out(stream), verbose(verbose) {
+  Log(std::ostream &stream, bool verbose = true) : cxxio::Out(stream), verbose(verbose) {
     start_time = std::chrono::system_clock::now();
   }
   void flush() {
@@ -45,6 +46,7 @@ Log& operator<<(Log &os, T t) {
     }
   }
   return os;
+}
 }
 
 #endif

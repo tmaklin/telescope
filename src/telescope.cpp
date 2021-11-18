@@ -18,36 +18,31 @@
 
 #include "telescope.hpp"
 
-#include <dirent.h>
-
 #include <string>
 #include <algorithm>
+#include <vector>
+#include <exception>
+#include <cstddef>
+#include <chrono>
 
 #include "cxxargs.hpp"
-#include "cxxio/file.hpp"
-#include "cxxio/log.hpp"
+#include "cxxio.hpp"
 
 #include "version.h"
+#include "log.hpp"
 
+namespace telescope {
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {
   return (std::find(begin, end, option) != end);
 }
 
-uint32_t CountLines(std::istream &stream) {
-  std::string line;
-  uint32_t n_lines = 0;
-  while(std::getline(stream, line)) {
-    ++n_lines;
-  }
-  return n_lines;
-}
-
-void parse_args(int argc, char* argv[], cxxargs::Arguments &args, File::Out &log) {
+void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &log) {
   args.add_short_argument<std::vector<std::string>>('r', "Themisto pseudoalignment(s)");
   args.add_short_argument<std::string>('o', "Output file directory.");
-  // args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
+  args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
+  args.set_not_required("n-refs");
   args.add_long_argument<std::string>("index", "Themisto pseudoalignment index directory");
-  args.add_long_argument<Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", m_unpaired);
+  args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
   args.add_long_argument<bool>("help", "Print the help message.", false);
   if (CmdOptionPresent(argv, argv+argc, "--help")) {
@@ -56,26 +51,19 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, File::Out &log
   }
   args.parse(argc, argv);
 }
+}
 
 int main(int argc, char* argv[]) {
-  Log log(std::cerr, !CmdOptionPresent(argv, argv+argc, "--silent"));
+  telescope::Log log(std::cerr, !telescope::CmdOptionPresent(argv, argv+argc, "--silent"));
   cxxargs::Arguments args("telescope-" + std::string(TELESCOPE_BUILD_VERSION), "Usage: telescope -r <strand_1>,<strand_2> -o <output prefix> --mode <merge mode> --index <Themisto index directory>");
   log << args.get_program_name() + '\n';
   try {
     log << "Parsing arguments\n";
     parse_args(argc, argv, args, log);
-    DIR* dir = opendir(args.value<std::string>('o').c_str());
-    if (dir) {
-      closedir(dir);
-    } else {
-      throw std::runtime_error("Directory " + args.value<std::string>('o') + " does not seem to exist.");
-    }
-    dir = opendir(args.value<std::string>("index").c_str());
-    if (dir) {
-      closedir(dir);
-    } else {
-      throw std::runtime_error("Themisto pseudoalignment index directory " + args.value<std::string>("index") + " does not seem to exist.");
-    }
+
+    // Check that the input directories  exist and are accessible
+    cxxio::directory_exists(args.value<std::string>('o'));
+    cxxio::directory_exists(args.value<std::string>("index"));
   } catch (std::exception &e) {
     log.verbose = true;
     log << "Parsing arguments failed:\n"
@@ -84,19 +72,27 @@ int main(int argc, char* argv[]) {
     log.flush();
     return 1;
   }
+
   log << "Counting pseudoalignment targets\n";
-  std::ifstream themisto_index(args.value<std::string>("index") + "/coloring-names.txt");
-  uint32_t n_refs = CountLines(themisto_index);
+  uint32_t n_refs;
+  if (!args.is_initialized("n-refs")) {
+    cxxio::In themisto_index(args.value<std::string>("index") + "/coloring-names.txt");
+    n_refs = themisto_index.count_lines<uint32_t>();
+  } else {
+    n_refs = args.value<uint32_t>("n-refs");
+  }
+
   log << "Reading Themisto alignments\n";
-  std::vector<File::In> infiles(args.value<std::vector<std::string>>('r').size());
+  std::vector<cxxio::In> infiles(args.value<std::vector<std::string>>('r').size());
   std::vector<std::istream*> infile_ptrs(infiles.size());
   for (size_t i = 0; i < args.value<std::vector<std::string>>('r').size(); ++i) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
     infile_ptrs.at(i) = &infiles.at(i).stream();
   }
-  ThemistoAlignment alignments;
-  ReadThemisto(args.value<Mode>("mode"), n_refs, infile_ptrs, &alignments);
-  KallistoRunInfo run_info(alignments);
+  telescope::ThemistoAlignment alignments;
+  telescope::read::Themisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs, &alignments);
+
+  telescope::KallistoRunInfo run_info(alignments);
   run_info.call = "";
   run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
   for (int i = 0; i < argc; ++i) {
@@ -105,16 +101,16 @@ int main(int argc, char* argv[]) {
   }
 
   log << "Writing converted alignments\n";
-  File::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
-  File::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
-  WriteThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
+  cxxio::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
+  cxxio::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
+  telescope::write::ThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
 
   log << "Writing read assignments to equivalence classes\n";
-  File::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
-  WriteReadToRef(alignments, &read_to_ref_file.stream());
+  cxxio::Out read_to_ref_file(args.value<std::string>('o') + "/read-to-ref.txt");
+  telescope::write::ThemistoReadAssignments(alignments, &read_to_ref_file.stream());
 
-  File::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
-  WriteRunInfo(run_info, 4, &run_info_file.stream());
+  cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
+  telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
 
   log << "Done\n";
   log.flush();
