@@ -22,8 +22,10 @@
 #include <string>
 #include <sstream>
 
+#include "bm.h"
+
 namespace telescope {
-void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {
+void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<bm::bvector<>> *ec_configs) {
   std::string line;
   
   uint32_t current_ec_pos = 0;
@@ -33,7 +35,7 @@ void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t 
     getline(partition, part, '\t');
     uint32_t ec_id = std::stoul(part);
     if (ec_id == ec_ids[current_ec_pos]) {
-      ec_configs->emplace_back(std::vector<bool>(n_refs, false));
+      ec_configs->emplace_back(bm::bvector<>(n_refs));
       getline(partition, part, '\t');
       std::string aln;
       std::stringstream alns(part);

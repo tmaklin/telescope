@@ -22,8 +22,10 @@
 #include <sstream>
 #include <unordered_map>
 
+#include "bm.h"
+
 namespace telescope {
-uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs) {
+uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<bm::bvector<>> *ec_configs) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
@@ -33,10 +35,11 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
     for (uint8_t i = 1; i < n_streams; ++i) {
       std::getline(*streams[i], lines[i]);
     }
-    ec_configs->emplace_back(std::vector<bool>(n_refs, mode == m_intersection));
-    std::vector<bool> *current_ec = &ec_configs->back();
+    bm::bvector<> current_ec(n_refs);
+    if (mode == m_intersection)
+      current_ec.set_range(0, n_refs, true);
 
-    std::vector<std::vector<bool>> proposed_ecs(n_streams, std::vector<bool>(n_refs, false));
+    std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs));
     for (uint8_t i = 0; i < n_streams; ++i) {
       std::string part;
       std::stringstream partition(lines[i]);
@@ -46,17 +49,13 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
       }
     }
     for (uint8_t i = 0; i < n_streams; ++i) {
-      for (uint32_t j = 0; j < n_refs; ++j) {
-	(*current_ec)[j] = (mode == m_intersection ? ((*current_ec)[j] && proposed_ecs[i][j]) : ((*current_ec)[j] || proposed_ecs[i][j]));
-      }
+      if (mode == m_intersection)
+	current_ec &= proposed_ecs[i];
+      else
+        current_ec |= proposed_ecs[i];
     }
-    bool any_aligned = false;
-    for (uint32_t j = 0; j < n_refs; ++j) {
-      any_aligned = (*current_ec)[j] || any_aligned;
-    }
-    if (!any_aligned) {
-      ec_configs->pop_back();
-    }
+    if (current_ec.any())
+      ec_configs->emplace_back(current_ec);
     ++n_reads;
   }
   return n_reads;
@@ -68,7 +67,7 @@ uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &gr
   uint8_t n_streams = streams.size();
   std::vector<std::string> lines(n_streams);
 
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+  std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
 
   uint32_t ec_pos;
   while (std::getline(*streams[0], lines[0])) {
@@ -76,8 +75,11 @@ uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &gr
       std::getline(*streams[i], lines[i]);
     }
 
-    std::vector<bool> current_ec(n_refs, mode == m_intersection);
-    std::vector<std::vector<bool>> proposed_ecs(n_streams, std::vector<bool>(n_refs, false));
+    bm::bvector<> current_ec(n_refs);
+    if (mode == m_intersection)
+      current_ec.set_range(0, n_refs, true);
+
+    std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs));
     for (uint8_t i = 0; i < n_streams; ++i) {
       std::string part;
       std::stringstream partition(lines[i]);
@@ -87,17 +89,14 @@ uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &gr
       }
     }
     for (uint8_t i = 0; i < n_streams; ++i) {
-      for (uint32_t j = 0; j < n_refs; ++j) {
-	current_ec[j] = (mode == m_intersection ? (current_ec[j] && proposed_ecs[i][j]) : (current_ec[j] || proposed_ecs[i][j]));
-      }
+      if (mode == m_intersection)
+	current_ec &= proposed_ecs[i];
+      else
+	current_ec |= proposed_ecs[i];
     }
-    bool any_aligned = false;
-    for (uint32_t j = 0; j < n_refs; ++j) {
-      any_aligned = current_ec[j] || any_aligned;
-    }
-    if (any_aligned) {
+    if (current_ec.any()) {
       if (ec_to_pos.find(current_ec) == ec_to_pos.end()) {
-	ec_group_counts->emplace_back(std::vector<uint16_t>(n_groups, 0));
+        ec_group_counts->emplace_back(std::vector<uint16_t>(n_groups, 0));
 	ec_counts->push_back(0);
 	ec_to_pos.insert(std::make_pair(current_ec, ec_pos));
 	++ec_pos;
@@ -113,7 +112,7 @@ uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &gr
   return n_reads;
 }
 
-uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<std::vector<bool>> *ec_configs, std::vector<uint32_t> *aligned_reads) {
+uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<bm::bvector<>> *ec_configs, std::vector<uint32_t> *aligned_reads) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
@@ -123,11 +122,12 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
     for (uint8_t i = 1; i < n_streams; ++i) {
       std::getline(*streams[i], lines[i]);
     }
-    ec_configs->emplace_back(std::vector<bool>(n_refs, mode == m_intersection));
-    std::vector<bool> *current_ec = &ec_configs->back();
+    bm::bvector<> current_ec(n_refs);
+    if (mode == m_intersection)
+      current_ec.set_range(0, n_refs, true);
 
     uint32_t read_id;
-    std::vector<std::vector<bool>> proposed_ecs(n_streams, std::vector<bool>(n_refs, false));
+    std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs));
     for (uint8_t i = 0; i < n_streams; ++i) {
       std::string part;
       std::stringstream partition(lines[i]);
@@ -138,17 +138,13 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
       }
     }
     for (uint8_t i = 0; i < n_streams; ++i) {
-      for (uint32_t j = 0; j < n_refs; ++j) {
-	(*current_ec)[j] = (mode == m_intersection ? ((*current_ec)[j] && proposed_ecs[i][j]) : ((*current_ec)[j] || proposed_ecs[i][j]));
-      }
+      if (mode == m_intersection)
+	current_ec &= proposed_ecs[i];
+      else
+	current_ec |= proposed_ecs[i];
     }
-    bool any_aligned = false;
-    for (uint32_t j = 0; j < n_refs; ++j) {
-      any_aligned = (*current_ec)[j] || any_aligned;
-    }
-    if (!any_aligned) {
-      ec_configs->pop_back();
-    } else {
+    if (current_ec.any()) {
+      ec_configs->emplace_back(current_ec);
       aligned_reads->emplace_back(read_id);
     }
     ++n_reads;
@@ -156,11 +152,11 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
   return n_reads;
 }
 
-std::vector<std::vector<bool>> CompressAlignment(const std::vector<std::vector<bool>> &ec_configs, std::vector<uint32_t> *ec_counts) {
+std::vector<bm::bvector<>> CompressAlignment(const std::vector<bm::bvector<>> &ec_configs, std::vector<uint32_t> *ec_counts) {
   // Compress the alignment into equivalence classes
-  std::vector<std::vector<bool>> compressed_ec_configs;
+  std::vector<bm::bvector<>> compressed_ec_configs;
   uint32_t num_alns = ec_configs.size();
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+  std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
   uint32_t ec_pos = 0;
   for (unsigned i = 0; i < num_alns; ++i) {
     if (ec_to_pos.find(ec_configs[i]) == ec_to_pos.end()) {
@@ -174,11 +170,11 @@ std::vector<std::vector<bool>> CompressAlignment(const std::vector<std::vector<b
   return compressed_ec_configs;
 }
 
-std::vector<std::vector<bool>> CompressAndAssign(const std::vector<uint32_t> &read_ids, const std::vector<std::vector<bool>> &ec_configs, std::vector<uint32_t> *ec_counts, std::vector<std::vector<uint32_t>> *aln_reads) {
+std::vector<bm::bvector<>> CompressAndAssign(const std::vector<uint32_t> &read_ids, const std::vector<bm::bvector<>> &ec_configs, std::vector<uint32_t> *ec_counts, std::vector<std::vector<uint32_t>> *aln_reads) {
   // Compress the alignment into equivalence classes and store the read assignments to equivalence classes
-  std::vector<std::vector<bool>> compressed_ec_configs;
+  std::vector<bm::bvector<>> compressed_ec_configs;
   uint32_t num_alns = ec_configs.size();
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+  std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
   uint32_t ec_pos = 0;
   for (unsigned i = 0; i < num_alns; ++i) {
     if (ec_to_pos.find(ec_configs[i]) == ec_to_pos.end()) {
