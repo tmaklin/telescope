@@ -30,32 +30,39 @@ uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
   std::vector<std::string> lines(n_streams);
+  bm::bvector<> current_ec(n_refs, bm::BM_GAP);
+  std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs, bm::BM_GAP));
 
   while (std::getline(*streams[0], lines[0])) {
+    if (mode == m_intersection)
+      current_ec.set();
+    else
+      current_ec.clear(false); // clear without freeing memory
+
+    proposed_ecs[0].clear(false);
     for (uint8_t i = 1; i < n_streams; ++i) {
       std::getline(*streams[i], lines[i]);
+      proposed_ecs[i].clear(false);
     }
-    bm::bvector<> current_ec(n_refs);
-    if (mode == m_intersection)
-      current_ec.set_range(0, n_refs, true);
 
-    std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs));
     for (uint8_t i = 0; i < n_streams; ++i) {
+      bm::bvector<>::insert_iterator iit(proposed_ecs[i]);
       std::string part;
       std::stringstream partition(lines[i]);
       getline(partition, part, ' ');
       while (getline(partition, part, ' ')) {
-	proposed_ecs[i][std::stoul(part)] = true;
+	iit = std::stoul(part);
       }
     }
     for (uint8_t i = 0; i < n_streams; ++i) {
       if (mode == m_intersection)
-	current_ec &= proposed_ecs[i];
+        current_ec.bit_and(proposed_ecs[i], bm::bvector<>::opt_none);
       else
-        current_ec |= proposed_ecs[i];
+	current_ec.bit_or(proposed_ecs[i], bm::bvector<>::opt_none);
     }
-    if (current_ec.any())
-      ec_configs->emplace_back(current_ec);
+    if (current_ec.any()) {
+	ec_configs->emplace_back(bm::bvector<>(current_ec, bm::finalization::READONLY));
+    }
     ++n_reads;
   }
   return n_reads;
@@ -154,18 +161,20 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
 
 std::vector<bm::bvector<>> CompressAlignment(const std::vector<bm::bvector<>> &ec_configs, std::vector<uint32_t> *ec_counts) {
   // Compress the alignment into equivalence classes
-  std::vector<bm::bvector<>> compressed_ec_configs;
+  std::vector<bm::bvector<>> compressed_ec_configs(0);
   uint32_t num_alns = ec_configs.size();
   std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
   uint32_t ec_pos = 0;
+  std::unordered_map<bm::bvector<>, uint32_t>::iterator it;
   for (unsigned i = 0; i < num_alns; ++i) {
-    if (ec_to_pos.find(ec_configs[i]) == ec_to_pos.end()) {
-      compressed_ec_configs.push_back(ec_configs[i]);
-      ec_counts->push_back(0);
-      ec_to_pos.insert(std::make_pair(ec_configs[i], ec_pos));
+    it = ec_to_pos.find(ec_configs[i]);
+    if (it == ec_to_pos.end()) {
+      compressed_ec_configs.emplace_back(bm::bvector<>(ec_configs[i], bm::finalization::READONLY));
+      ec_counts->emplace_back(0);
+      it = ec_to_pos.insert(std::make_pair(ec_configs[i], ec_pos)).first; // return iterator to inserted element
       ++ec_pos;
     }
-    (*ec_counts)[ec_to_pos[ec_configs[i]]] += 1;
+    (*ec_counts)[it->second] += 1;
   }
   return compressed_ec_configs;
 }
