@@ -50,6 +50,26 @@ endif()
 
 ## Check dependencies and download them if not found
 
+## BitMagic
+if (DEFINED CMAKE_BITMAGIC_HEADERS)
+  message(STATUS "BitMagic headers provided in: ${CMAKE_BITMAGIC_HEADERS}")
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-bitmagic.txt.in ${CMAKE_BINARY_DIR}/external/bitmagic-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bitmagic-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for BitMagic failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bitmagic-download )
+  if(result)
+    message(FATAL_ERROR "Build step for BitMagic failed: ${result}")
+  endif()
+  set(CMAKE_BITMAGIC_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bitmagic/src/)
+endif()
+
 ## bxzstr
 if (DEFINED CMAKE_BXZSTR_HEADERS)
   message(STATUS "bxzstr headers provided in: ${CMAKE_BXZSTR_HEADERS}")
@@ -112,7 +132,7 @@ else()
 endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
-include_directories(include ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS})
+include_directories(include ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS} ${CMAKE_BITMAGIC_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)
