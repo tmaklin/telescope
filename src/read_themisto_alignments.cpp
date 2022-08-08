@@ -26,47 +26,85 @@
 
 namespace telescope {
 
-size_t ReadAlignmentFile(const size_t &n_refs, std::istream *stream, bm::bvector<> *bits) {
-  bm::bvector<>::bulk_insert_iterator it(*bits);
+size_t ReadAlignmentFile(const size_t &n_refs, std::istream *stream, bm::bvector<> *alignment) {
+  // telescope::ReadAlignmentFile
+  //
+  // Reads in a istream pointing to a single themisto pseudoalignment
+  // as a contiguous bit vector.
+  //
+  // Input:
+  //   `n_refs`: number of reference sequences in the used themisto index.
+  //   `stream`: pointer to an istream opened on the pseudoalignment file.
+  //   `alignment`: pointer to a bitvector that will contain the results (can be uninitialized).
+  //
+  // Output:
+  //   `read_id`: total number of reads (aligned and unaligned) in the pseudoalignment file.
+  //
+  bm::bvector<>::bulk_insert_iterator it(*alignment);
   std::string line;
-  size_t read_id = 0;
+  size_t n_reads = 0;
   while (std::getline(*stream, line)) {
     std::string part;
     std::stringstream partition(line);
     std::getline(partition, part, ' ');
     while (std::getline(partition, part, ' ')) {
-      it = read_id*n_refs + std::stoul(part);
+      it = n_reads*n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
     }
-    ++read_id;
+    ++n_reads; // assumes --sort-output was used when running `themisto pseudoalign`
   }
-  if (bits->size() != read_id*n_refs) {
-    bits->resize(read_id*n_refs); // add trailing zeros
+
+  if (alignment->size() != n_reads*n_refs) {
+    // Add trailing zeros if last alignment did not hit the last reference sequence.
+    alignment->resize(n_reads*n_refs);
   }
-  bits->optimize();
-  return read_id;
+  alignment->optimize(); // Conserve memory.
+  return n_reads;
 }
 
-uint32_t ReadAlignments(const Mode &mode, const uint32_t &n_refs, std::vector<std::istream*> &streams, bm::bvector<> *all_ecs) {
-  // Returns the number of reads processed
-  uint8_t n_streams = streams.size();
+uint32_t ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, std::vector<std::istream*> &streams, bm::bvector<> *alignment) {
+  // telescope::ReadPairedAlignments
+  //
+  // Reads in one or more pseudoalignment files from themisto for paired reads.
+  //
+  // Input:
+  //   `n_refs`: number of reference sequences in the used themisto index.
+  //   `streams`: pointers to istreams opened on the pseudoalignment files.
+  //   `alignment`: pointer to a bitvector that will contain the results (can be uninitialized).
+  //
+  // Output:
+  //   `n_reads`: total number of paired reads (aligned and unaligned) in the pseudoalignment files.
+  //
+  uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
   size_t n_reads = 0;
 
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
-      n_reads = ReadAlignmentFile(n_refs, streams[i], all_ecs);
+      // Read the first alignments in-place to the output variable.
+      n_reads = ReadAlignmentFile(n_refs, streams[i], alignment);
     } else {
-      bm::bvector<> bits(n_reads*n_refs, bm::BM_GAP);
-      bits.freeze();
-      size_t n_reads_new = ReadAlignmentFile(n_refs, streams[i], &bits);
+      // Read subsequent alignments into a new bitvector.
+      // Size is now known since the paired files should have the same numbers of reads.
+      bm::bvector<> pair_alignment(n_reads*n_refs, bm::BM_GAP);
+      size_t n_reads_new = ReadAlignmentFile(n_refs, streams[i], &pair_alignment);
+
+      if (n_reads != n_reads_new) {
+	// Themisto's output from paired-end reads should contain the same amount of reads.
+	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
+      }
+      pair_alignment.freeze(); // Make the alignment read-only.
+
       if (mode == m_intersection) {
-	*all_ecs &= bits;
+	// m_intersection: both reads in a pair should align to be considered a match.
+	*alignment &= pair_alignment;
       } else {
-	*all_ecs |= bits;
+	// m_union or m_unpaired: count alignments regardless of pair's status.
+	*alignment |= pair_alignment;
       }
     }
   }
-  all_ecs->optimize();
-  all_ecs->freeze();
+  // Conserve memory and make alignments read-only.
+  alignment->optimize();
+  alignment->freeze();
 
   return n_reads;
 }
@@ -223,7 +261,7 @@ void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*
   // Read in only the ec_configs
   bm::bvector<> all_ecs;
   all_ecs.set_new_blocks_strat(bm::BM_GAP);
-  aln->n_processed = ReadAlignments(mode, n_refs, streams, &all_ecs);
+  aln->n_processed = ReadPairedAlignments(mode, n_refs, streams, &all_ecs);
   *aln->get() = CompressAlignment(all_ecs, n_refs, aln->n_processed, &aln->ec_counts);
 
   if (aln->get()->size() != aln->ec_counts.size()*n_refs) {
