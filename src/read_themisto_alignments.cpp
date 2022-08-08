@@ -230,7 +230,7 @@ bm::bvector<> CompressAlignment(const bm::bvector<> &full_alignment, const size_
   for (size_t i = 0; i < num_alns; ++i) {
     // Check if the current read aligned against any reference and
     // discard the read if it didn't.
-    if (all_ecs.any_range(i*n_refs, i*n_refs + n_refs - 1)) {
+    if (full_alignment.any_range(i*n_refs, i*n_refs + n_refs - 1)) {
       // Copy the current alignment into a std::vector<bool> for hashing.
       //
       // TODO: implement the std::vector<bool> hash function
@@ -238,7 +238,7 @@ bm::bvector<> CompressAlignment(const bm::bvector<> &full_alignment, const size_
       //
       std::vector<bool> current_ec(n_refs, false);
       for (size_t j = 0; j < n_refs; ++j) {
-	current_ec[j] = all_ecs[i*n_refs + j];
+	current_ec[j] = full_alignment[i*n_refs + j];
       }
 
       // Check if the pattern has been observed
@@ -286,10 +286,10 @@ std::vector<bm::bvector<>> CompressAndAssign(const std::vector<uint32_t> &read_i
 namespace read {
 void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
-  bm::bvector<> all_ecs;
-  all_ecs.set_new_blocks_strat(bm::BM_GAP);
-  aln->n_processed = ReadPairedAlignments(mode, n_refs, streams, &all_ecs);
-  *aln->get() = CompressAlignment(all_ecs, n_refs, aln->n_processed, &aln->ec_counts);
+  bm::bvector<> alignment;
+  alignment.set_new_blocks_strat(bm::BM_GAP);
+  aln->n_processed = ReadPairedAlignments(mode, n_refs, streams, &alignment);
+  *aln->get() = CompressAlignment(alignment, n_refs, aln->n_processed, &aln->ec_counts);
 
   if (aln->get()->size() != aln->ec_counts.size()*n_refs) {
     aln->get()->resize(aln->ec_counts.size()*n_refs); // add trailing zeros
