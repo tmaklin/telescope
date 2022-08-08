@@ -25,46 +25,46 @@
 #include "bm.h"
 
 namespace telescope {
-uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, std::vector<bm::bvector<>> *ec_configs) {
+uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, bm::bvector<> *all_ecs) {
   // Returns the number of reads processed
   uint32_t n_reads = 0;
   uint8_t n_streams = streams.size();
   std::vector<std::string> lines(n_streams);
-  bm::bvector<> current_ec(n_refs, bm::BM_GAP);
-  std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs, bm::BM_GAP));
+
+  std::vector<bm::bvector<>> allbits(n_streams);
+  std::vector<bm::bvector<>::bulk_insert_iterator> its;
+  for (uint8_t i = 0; i < n_streams; ++i) {
+    its.emplace_back(bm::bvector<>::bulk_insert_iterator(allbits[i]));
+  }
 
   while (std::getline(*streams[0], lines[0])) {
-    if (mode == m_intersection)
-      current_ec.set();
-    else
-      current_ec.clear(false); // clear without freeing memory
-
-    proposed_ecs[0].clear(false);
     for (uint8_t i = 1; i < n_streams; ++i) {
       std::getline(*streams[i], lines[i]);
-      proposed_ecs[i].clear(false);
     }
 
     for (uint8_t i = 0; i < n_streams; ++i) {
-      bm::bvector<>::insert_iterator iit(proposed_ecs[i]);
       std::string part;
       std::stringstream partition(lines[i]);
       getline(partition, part, ' ');
       while (getline(partition, part, ' ')) {
-	iit = std::stoul(part);
+	  its[i] = n_reads*n_refs + std::stoul(part);
       }
-    }
-    for (uint8_t i = 0; i < n_streams; ++i) {
-      if (mode == m_intersection)
-        current_ec.bit_and(proposed_ecs[i], bm::bvector<>::opt_none);
-      else
-	current_ec.bit_or(proposed_ecs[i], bm::bvector<>::opt_none);
-    }
-    if (current_ec.any()) {
-	ec_configs->emplace_back(bm::bvector<>(current_ec, bm::finalization::READONLY));
     }
     ++n_reads;
   }
+
+  (*all_ecs) = bm::bvector<>(allbits[0].size(), bm::BM_GAP);
+  if (mode == m_intersection) {
+    all_ecs->set();
+  }
+  for (uint8_t i = 0; i < n_streams; ++i) {
+    if (mode == m_intersection) {
+      all_ecs->bit_and(allbits[i], bm::bvector<>::opt_compress);
+    } else {
+      all_ecs->bit_or(allbits[i], bm::bvector<>::opt_compress);
+    }
+  }
+
   return n_reads;
 }
 
@@ -159,22 +159,29 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
   return n_reads;
 }
 
-std::vector<bm::bvector<>> CompressAlignment(const std::vector<bm::bvector<>> &ec_configs, std::vector<uint32_t> *ec_counts) {
+std::vector<bm::bvector<>> CompressAlignment(const bm::bvector<> &all_ecs, const size_t n_refs, const size_t num_alns, std::vector<uint32_t> *ec_counts) {
   // Compress the alignment into equivalence classes
-  std::vector<bm::bvector<>> compressed_ec_configs(0);
-  uint32_t num_alns = ec_configs.size();
+  std::vector<bm::bvector<>> compressed_ec_configs;
   std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
   uint32_t ec_pos = 0;
   std::unordered_map<bm::bvector<>, uint32_t>::iterator it;
   for (unsigned i = 0; i < num_alns; ++i) {
-    it = ec_to_pos.find(ec_configs[i]);
-    if (it == ec_to_pos.end()) {
-      compressed_ec_configs.emplace_back(bm::bvector<>(ec_configs[i], bm::finalization::READONLY));
-      ec_counts->emplace_back(0);
-      it = ec_to_pos.insert(std::make_pair(ec_configs[i], ec_pos)).first; // return iterator to inserted element
-      ++ec_pos;
+    bm::bvector<> current_ec(n_refs);
+    bool any_aligned = false;
+    for (size_t j = 0; j < n_refs; ++j) {
+      current_ec[j] = all_ecs[i*n_refs + j];
+      any_aligned |= current_ec[j];
     }
-    (*ec_counts)[it->second] += 1;
+    if (any_aligned) {
+      it = ec_to_pos.find(current_ec);
+      if (it == ec_to_pos.end()) {
+	compressed_ec_configs.emplace_back(bm::bvector<>(current_ec, bm::finalization::READONLY));
+	ec_counts->emplace_back(0);
+	it = ec_to_pos.insert(std::make_pair(current_ec, ec_pos)).first; // return iterator to inserted element
+	++ec_pos;
+      }
+      (*ec_counts)[it->second] += 1;
+    }
   }
   return compressed_ec_configs;
 }
@@ -203,8 +210,9 @@ std::vector<bm::bvector<>> CompressAndAssign(const std::vector<uint32_t> &read_i
 namespace read {
 void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
-  aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
-  aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
+  bm::bvector<> all_ecs;
+  aln->n_processed = ReadAlignments(mode, n_refs, streams, &all_ecs);
+  aln->ec_configs = CompressAlignment(all_ecs, n_refs, aln->n_processed, &aln->ec_counts);
 }
 
 void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
@@ -221,8 +229,8 @@ void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<s
 
 void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
   // Read in the ec_configs and fill the ec_ids vector
-  aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
-  aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
+    //  aln->n_processed = ReadAlignments(mode, n_refs, streams, &aln->ec_configs);
+    //aln->ec_configs = CompressAlignment(aln->ec_configs, &aln->ec_counts);
   for (uint32_t i = 0; i < aln->size(); ++i) {
     aln->ec_ids.emplace_back(i);
   }
