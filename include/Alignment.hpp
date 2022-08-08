@@ -49,6 +49,7 @@ struct GroupedAlignment : public Alignment{
 };
 
 struct ThemistoAlignment : public CompressedAlignment{
+  std::vector<uint32_t> read_ids;
   std::vector<std::vector<uint32_t>> aligned_reads;
 };
 }
