@@ -200,36 +200,63 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
   return n_reads;
 }
 
-bm::bvector<> CompressAlignment(const bm::bvector<> &all_ecs, const size_t n_refs, const size_t num_alns, std::vector<uint32_t> *ec_counts) {
-  // Compress the alignment into equivalence classes
+bm::bvector<> CompressAlignment(const bm::bvector<> &full_alignment, const size_t &n_refs, const size_t &num_alns, std::vector<uint32_t> *ec_counts) {
+  // telescope::CompressAlignment
+  //
+  // Compresses the full pseudoalignment data into equivalence
+  // classes, meaning unique pseudoalignment patterns and the numbers
+  // of times they were observed.
+  //
+  // Input:
+  //   `full_alignment`: the pseudoalignment as a bitvector (output from ReadPairedAlignment or ReadAlignmentFile).
+  //   `n_refs`: number of reference sequences in the themisto index.
+  //   `num_alns`: number of reads in the pseudoalignment file(s).
+  //   `ec_counts`: pointer to a vector for storing the equivalence class observation counts.
+  //
+  // Output:
+  //   `compressed_ec_configs`: unique pseudoalignment patterns that were observed
+  //                            at least once. Guaranteed to be in the same order
+  //                            as `ec_counts`.
+  //
   bm::bvector<> compressed_ec_configs;
-  compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
   bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
 
+  // Need to hash the alignment patterns to count the times they appear.
   std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
   std::unordered_map<std::vector<bool>, uint32_t>::iterator it;
 
-  size_t ec_pos = 0;
-
+  size_t ec_id = 0;
   for (size_t i = 0; i < num_alns; ++i) {
+    // Check if the current read aligned against any reference and
+    // discard the read if it didn't.
     if (all_ecs.any_range(i*n_refs, i*n_refs + n_refs - 1)) {
+      // Copy the current alignment into a std::vector<bool> for hashing.
+      //
+      // TODO: implement the std::vector<bool> hash function
+      // for bm::bvector<> and use bm::copy_range?
+      //
       std::vector<bool> current_ec(n_refs, false);
       for (size_t j = 0; j < n_refs; ++j) {
 	current_ec[j] = all_ecs[i*n_refs + j];
       }
 
+      // Check if the pattern has been observed
       it = ec_to_pos.find(current_ec);
       if (it == ec_to_pos.end()) {
+	// Add new patterns to compressed_ec_configs.
 	for (size_t j = 0; j < n_refs; ++j) {
 	  if (current_ec[j]) {
-	    bv_it = ec_pos*n_refs + j;
+	    bv_it = ec_id*n_refs + j;
 	  }
 	}
+	// Add a new counter for the new pattern
 	ec_counts->emplace_back(0);
-	it = ec_to_pos.insert(std::make_pair(current_ec, ec_pos)).first; // return iterator to inserted element
-	++ec_pos;
+	// Insert the new pattern into the hashmap
+	it = ec_to_pos.insert(std::make_pair(current_ec, ec_id)).first; // return iterator to inserted element
+	++ec_id;
       }
-      (*ec_counts)[it->second] += 1;
+      (*ec_counts)[it->second] += 1; // Increment number of times the pattern was observed
     }
   }
   return compressed_ec_configs;
