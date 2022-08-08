@@ -25,9 +25,11 @@
 #include "bm64.h"
 
 namespace telescope {
-void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<bm::bvector<>> *ec_configs) {
+void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, bm::bvector<> *ec_configs) {
   std::string line;
-  
+  ec_configs->set_new_blocks_strat(bm::BM_GAP);
+  bm::bvector<>::bulk_insert_iterator it(*ec_configs);
+
   uint32_t current_ec_pos = 0;
   while(getline(stream, line)) {
     std::string part;
@@ -35,16 +37,20 @@ void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t 
     getline(partition, part, '\t');
     uint32_t ec_id = std::stoul(part);
     if (ec_id == ec_ids[current_ec_pos]) {
-      ec_configs->emplace_back(bm::bvector<>(n_refs));
       getline(partition, part, '\t');
       std::string aln;
       std::stringstream alns(part);
       while(getline(alns, aln, ',')) {
-	ec_configs->back()[std::stoul(aln)] = true;
+	it = current_ec_pos*n_refs + std::stoul(aln);
       }
       ++current_ec_pos;
     }
   }
+  if (ec_configs->size() != current_ec_pos*n_refs) {
+    ec_configs->resize(current_ec_pos*n_refs); // add trailing zeros
+  }
+  ec_configs->optimize();
+  ec_configs->freeze();
 }
 
 void ReadAlignmentCounts(std::istream &stream, std::vector<uint32_t> *ec_ids, std::vector<uint32_t> *ec_counts) {
@@ -67,12 +73,12 @@ namespace read {
 void Kallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln) {
   std::vector<uint32_t> ec_ids;
   ReadAlignmentCounts(tsv_file, &ec_ids, &aln->ec_counts);
-  ReadEquivalenceClasses(ec_ids, n_refs, ec_file, &aln->ec_configs);
+  ReadEquivalenceClasses(ec_ids, n_refs, ec_file, aln->get());
 }
 
 void KallistoEcIds(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
   ReadAlignmentCounts(tsv_file, &kaln->ec_ids, &kaln->ec_counts);
-  ReadEquivalenceClasses(kaln->ec_ids, n_refs, ec_file, &kaln->ec_configs);
+  ReadEquivalenceClasses(kaln->ec_ids, n_refs, ec_file, kaln->get());
 }
 }
 }
