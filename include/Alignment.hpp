@@ -44,7 +44,9 @@ public:
   bm::bvector<>* get() { return &this->ec_configs; }
 };
 
-struct GroupedAlignment : public Alignment{
+struct GroupedAlignment : public CompressedAlignment {
+  uint16_t n_groups;
+  std::vector<uint16_t> group_indicators;
   std::vector<std::vector<uint16_t>> ec_group_counts;
 };
 

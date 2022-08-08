@@ -137,57 +137,6 @@ void ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, Function &Pa
   alignment->get()->freeze();
 }
 
-uint32_t ReadGroupedAlignments(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, std::vector<std::vector<uint16_t>> *ec_group_counts, std::vector<uint32_t> *ec_counts) {
-  // Returns the number of reads processed
-  uint32_t n_reads = 0;
-  uint8_t n_streams = streams.size();
-  std::vector<std::string> lines(n_streams);
-
-  std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
-
-  uint32_t ec_pos;
-  while (std::getline(*streams[0], lines[0])) {
-    for (uint8_t i = 1; i < n_streams; ++i) {
-      std::getline(*streams[i], lines[i]);
-    }
-
-    bm::bvector<> current_ec(n_refs);
-    if (mode == m_intersection)
-      current_ec.set_range(0, n_refs, true);
-
-    std::vector<bm::bvector<>> proposed_ecs(n_streams, bm::bvector<>(n_refs));
-    for (uint8_t i = 0; i < n_streams; ++i) {
-      std::string part;
-      std::stringstream partition(lines[i]);
-      getline(partition, part, ' ');
-      while (getline(partition, part, ' ')) {
-	proposed_ecs[i][std::stoul(part)] = true;
-      }
-    }
-    for (uint8_t i = 0; i < n_streams; ++i) {
-      if (mode == m_intersection)
-	current_ec &= proposed_ecs[i];
-      else
-	current_ec |= proposed_ecs[i];
-    }
-    if (current_ec.any()) {
-      if (ec_to_pos.find(current_ec) == ec_to_pos.end()) {
-        ec_group_counts->emplace_back(std::vector<uint16_t>(n_groups, 0));
-	ec_counts->push_back(0);
-	ec_to_pos.insert(std::make_pair(current_ec, ec_pos));
-	++ec_pos;
-	std::vector<uint16_t> *current_read = &ec_group_counts->back();
-	for (uint32_t j = 0; j  < n_refs; ++j) {
-	  (*current_read)[group_indicators[j]] += current_ec[j];
-	}
-      }
-      (*ec_counts)[ec_to_pos[current_ec]] += 1;
-    }
-    ++n_reads;
-  }
-  return n_reads;
-}
-
 void InsertPseudoalignment(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
   // Check if the pattern has been observed
   std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -226,6 +175,24 @@ void InsertPseudoalignment2(const std::vector<bool> &current_ec, const size_t &i
   }
   alignment->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
   static_cast<ThemistoAlignment*>(alignment)->aligned_reads[it->second].emplace_back(static_cast<ThemistoAlignment*>(alignment)->read_ids[i]);
+}
+
+void InsertPseudoalignment3(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
+
+  // Check if the pattern has been observed
+  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+  if (it == ec_to_pos->end()) {
+    alignment->ec_counts.emplace_back(0);
+    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
+    ++(*ec_id);
+
+    static_cast<GroupedAlignment*>(alignment)->ec_group_counts.emplace_back(std::vector<uint16_t>(static_cast<GroupedAlignment*>(alignment)->n_groups, 0));
+    std::vector<uint16_t> *current_read = &static_cast<GroupedAlignment*>(alignment)->ec_group_counts.back();
+    for (uint32_t j = 0; j  < alignment->n_refs; ++j) {
+      (*current_read)[static_cast<GroupedAlignment*>(alignment)->group_indicators[j]] += current_ec[j];
+    }
+  }
+  alignment->ec_counts[it->second] += 1;
 }
 
 template<typename Function>
@@ -297,11 +264,15 @@ void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*
 
 void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
   // Read in group counts
-  aln->n_processed = ReadGroupedAlignments(mode, group_indicators, n_refs, n_groups, streams, &aln->ec_group_counts, &aln->ec_counts);
+  aln->n_refs = n_refs;
+  aln->n_groups = n_groups;
+  aln->group_indicators = group_indicators;
+  ReadPairedAlignments(mode, n_refs, ParseLine, streams, aln);
+  CompressAlignment(InsertPseudoalignment3, aln);
 }
 
 void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
-  // // Read in the ec_configs and which reads are assigned to which equivalence classes
+  // Read in the ec_configs and which reads are assigned to which equivalence classes
   taln->n_refs = n_refs;
   ReadPairedAlignments(mode, n_refs, ParseLine2, streams, taln);
   CompressAlignment(InsertPseudoalignment2, taln);
