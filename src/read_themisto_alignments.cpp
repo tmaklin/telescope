@@ -26,8 +26,8 @@
 #include "bm64.h"
 
 namespace telescope {
-
-void ParseLine(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
+namespace parser {
+void Pseudoalignments(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
   // telescope::ParseLine
   //
   // Parses a line in the pseudoalignment file.
@@ -42,7 +42,7 @@ void ParseLine(const std::string &line, const size_t &n_refs, CompressedAlignmen
   ++alignment->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
 }
 
-void ParseLine2(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
+void AlignedReads(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
   // telescope::ParseLine
   //
   // Parses a line in the pseudoalignment file and includes the read ids.
@@ -51,13 +51,73 @@ void ParseLine2(const std::string &line, const size_t &n_refs, CompressedAlignme
   std::stringstream partition(line);
   std::getline(partition, part, ' ');
   // Store the read id
-  static_cast<ThemistoAlignment*>(alignment)->read_ids.emplace_back(std::stoul(part));
+  static_cast<telescope::ThemistoAlignment*>(alignment)->read_ids.emplace_back(std::stoul(part));
   while (std::getline(partition, part, ' ')) {
     *it = alignment->n_processed*n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
   }
   ++alignment->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
 }
+}
 
+namespace inserter {
+void Pseudoalignment(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
+  // Check if the pattern has been observed
+  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+  if (it == ec_to_pos->end()) {
+    // Add new patterns to compressed_ec_configs.
+    for (size_t j = 0; j < alignment->n_refs; ++j) {
+      if (current_ec[j]) {
+	*bv_it = (*ec_id)*alignment->n_refs + j;
+      }
+    }
+    // Add a new counter for the new pattern
+    alignment->ec_counts.emplace_back(0);
+    // Insert the new pattern into the hashmap
+    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first; // return iterator to inserted element
+    ++(*ec_id);
+  }
+  alignment->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
+}
+
+void AlignedReads(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
+  // Check if the pattern has been observed
+  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+  if (it == ec_to_pos->end()) {
+    // Add new patterns to compressed_ec_configs.
+    for (size_t j = 0; j < alignment->n_refs; ++j) {
+      if (current_ec[j]) {
+	*bv_it = (*ec_id)*alignment->n_refs + j;
+      }
+    }
+    // Add a new counter for the new pattern
+    alignment->ec_counts.emplace_back(0);
+    // Insert the new pattern into the hashmap
+    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first; // return iterator to inserted element
+    static_cast<telescope::ThemistoAlignment*>(alignment)->aligned_reads.emplace_back(std::vector<uint32_t>());
+    ++(*ec_id);
+  }
+  alignment->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
+  static_cast<telescope::ThemistoAlignment*>(alignment)->aligned_reads[it->second].emplace_back(static_cast<telescope::ThemistoAlignment*>(alignment)->read_ids[i]);
+}
+
+void GroupedAlignment(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
+
+  // Check if the pattern has been observed
+  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+  if (it == ec_to_pos->end()) {
+    alignment->ec_counts.emplace_back(0);
+    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
+    ++(*ec_id);
+
+    static_cast<telescope::GroupedAlignment*>(alignment)->ec_group_counts.emplace_back(std::vector<uint16_t>(static_cast<telescope::GroupedAlignment*>(alignment)->n_groups, 0));
+    std::vector<uint16_t> *current_read = &static_cast<telescope::GroupedAlignment*>(alignment)->ec_group_counts.back();
+    for (uint32_t j = 0; j  < alignment->n_refs; ++j) {
+      (*current_read)[static_cast<telescope::GroupedAlignment*>(alignment)->group_indicators[j]] += current_ec[j];
+    }
+  }
+  alignment->ec_counts[it->second] += 1;
+}
+}
 template<typename Function>
 void ReadAlignmentFile(const size_t &n_refs, const Function &Parser, std::istream *stream, CompressedAlignment *_alignment) {
   // telescope::ReadAlignmentFile
@@ -137,64 +197,6 @@ void ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, Function &Pa
   alignment->get()->freeze();
 }
 
-void InsertPseudoalignment(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
-  // Check if the pattern has been observed
-  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
-  if (it == ec_to_pos->end()) {
-    // Add new patterns to compressed_ec_configs.
-    for (size_t j = 0; j < alignment->n_refs; ++j) {
-      if (current_ec[j]) {
-	*bv_it = (*ec_id)*alignment->n_refs + j;
-      }
-    }
-    // Add a new counter for the new pattern
-    alignment->ec_counts.emplace_back(0);
-    // Insert the new pattern into the hashmap
-    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first; // return iterator to inserted element
-    ++(*ec_id);
-  }
-  alignment->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
-}
-
-void InsertPseudoalignment2(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
-  // Check if the pattern has been observed
-  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
-  if (it == ec_to_pos->end()) {
-    // Add new patterns to compressed_ec_configs.
-    for (size_t j = 0; j < alignment->n_refs; ++j) {
-      if (current_ec[j]) {
-	*bv_it = (*ec_id)*alignment->n_refs + j;
-      }
-    }
-    // Add a new counter for the new pattern
-    alignment->ec_counts.emplace_back(0);
-    // Insert the new pattern into the hashmap
-    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first; // return iterator to inserted element
-    static_cast<ThemistoAlignment*>(alignment)->aligned_reads.emplace_back(std::vector<uint32_t>());
-    ++(*ec_id);
-  }
-  alignment->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
-  static_cast<ThemistoAlignment*>(alignment)->aligned_reads[it->second].emplace_back(static_cast<ThemistoAlignment*>(alignment)->read_ids[i]);
-}
-
-void InsertPseudoalignment3(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it, CompressedAlignment *alignment) {
-
-  // Check if the pattern has been observed
-  std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
-  if (it == ec_to_pos->end()) {
-    alignment->ec_counts.emplace_back(0);
-    it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
-    ++(*ec_id);
-
-    static_cast<GroupedAlignment*>(alignment)->ec_group_counts.emplace_back(std::vector<uint16_t>(static_cast<GroupedAlignment*>(alignment)->n_groups, 0));
-    std::vector<uint16_t> *current_read = &static_cast<GroupedAlignment*>(alignment)->ec_group_counts.back();
-    for (uint32_t j = 0; j  < alignment->n_refs; ++j) {
-      (*current_read)[static_cast<GroupedAlignment*>(alignment)->group_indicators[j]] += current_ec[j];
-    }
-  }
-  alignment->ec_counts[it->second] += 1;
-}
-
 template<typename Function>
 void CompressAlignment(const Function &Inserter, CompressedAlignment *full_alignment) {
   // telescope::CompressAlignment
@@ -256,8 +258,8 @@ namespace read {
 void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
   aln->n_refs = n_refs;
-  ReadPairedAlignments(mode, n_refs, ParseLine, streams, aln);
-  CompressAlignment(InsertPseudoalignment, aln);
+  ReadPairedAlignments(mode, n_refs, parser::Pseudoalignments, streams, aln);
+  CompressAlignment(inserter::Pseudoalignment, aln);
 
   OptimizeStorage(aln->ec_counts.size(), n_refs, aln->get());
 }
@@ -267,15 +269,15 @@ void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indica
   aln->n_refs = n_refs;
   aln->n_groups = n_groups;
   aln->group_indicators = group_indicators;
-  ReadPairedAlignments(mode, n_refs, ParseLine, streams, aln);
-  CompressAlignment(InsertPseudoalignment3, aln);
+  ReadPairedAlignments(mode, n_refs, parser::Pseudoalignments, streams, aln);
+  CompressAlignment(inserter::GroupedAlignment, aln);
 }
 
 void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
   taln->n_refs = n_refs;
-  ReadPairedAlignments(mode, n_refs, ParseLine2, streams, taln);
-  CompressAlignment(InsertPseudoalignment2, taln);
+  ReadPairedAlignments(mode, n_refs, parser::AlignedReads, streams, taln);
+  CompressAlignment(inserter::AlignedReads, taln);
 
   OptimizeStorage(taln->ec_counts.size(), n_refs, taln->get());
 }
