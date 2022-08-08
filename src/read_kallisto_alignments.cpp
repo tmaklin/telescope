@@ -22,7 +22,7 @@
 #include <string>
 #include <sstream>
 
-#include "bm.h"
+#include "bm64.h"
 
 namespace telescope {
 void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<bm::bvector<>> *ec_configs) {
@@ -40,7 +40,7 @@ void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t 
       std::string aln;
       std::stringstream alns(part);
       while(getline(alns, aln, ',')) {
-  	ec_configs->back()[std::stoul(aln)] = true;
+	ec_configs->back()[std::stoul(aln)] = true;
       }
       ++current_ec_pos;
     }

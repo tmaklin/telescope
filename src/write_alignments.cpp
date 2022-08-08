@@ -27,7 +27,7 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
   for (uint32_t i = 0; i < aln.size(); ++i) {
     std::string aligneds("");
     for (uint32_t j = 0; j < aln.n_targets(); ++j) {
-      if (aln.ec_configs[i][j]) {
+      if (aln(i, j)) {
 	aligneds += std::to_string(j);
 	aligneds += ',';
       }
@@ -47,7 +47,7 @@ void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
       *out << aln.aligned_reads[i][j] << ' ';
       std::string aligned_to("");
       for (uint32_t k = 0; k < aln.n_targets(); ++k) {
-	if (aln.ec_configs[i][k]) {
+	if (aln(i, k)) {
 	  aligned_to += std::to_string(k);
 	  aligned_to += ' ';
 	}

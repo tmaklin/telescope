@@ -22,31 +22,26 @@
 #include <vector>
 #include <cstddef>
 
-#include "bm.h"
-
-template<> struct std::hash<bm::bvector<>> {
-    std::size_t operator()(bm::bvector<> const& vec) const noexcept {
-	std::vector<bool> cnv(vec.size());
-	for (size_t i = 0; i < vec.size(); ++i) {
-	    cnv[i] = vec[i];
-	}
-	return std::hash<std::vector<bool>>{}(cnv);
-    }
-};
+#include "bm64.h"
 
 namespace telescope {
 struct Alignment {
   std::vector<uint32_t> ec_counts;
 
   uint32_t n_processed;
+  size_t n_refs;
 
   uint32_t size() const { return ec_counts.size(); }
 };
 
-struct CompressedAlignment : public Alignment{
-    std::vector<bm::bvector<>> ec_configs;
+class CompressedAlignment : public Alignment{
+private:
+  bm::bvector<> ec_configs;
 
-  uint32_t n_targets() const { return this->ec_configs.at(0).size(); }
+public:
+  uint32_t n_targets() const { return this->n_refs; }
+  bool operator()(size_t row, size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
+  bm::bvector<>* get() { return &this->ec_configs; }
 };
 
 struct GroupedAlignment : public Alignment{

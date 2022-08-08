@@ -22,48 +22,51 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "bm.h"
+#include "bm64.h"
 
 namespace telescope {
-uint32_t ReadAlignments(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, bm::bvector<> *all_ecs) {
-  // Returns the number of reads processed
-  uint32_t n_reads = 0;
-  uint8_t n_streams = streams.size();
-  std::vector<std::string> lines(n_streams);
 
-  std::vector<bm::bvector<>> allbits(n_streams);
-  std::vector<bm::bvector<>::bulk_insert_iterator> its;
-  for (uint8_t i = 0; i < n_streams; ++i) {
-    its.emplace_back(bm::bvector<>::bulk_insert_iterator(allbits[i]));
-  }
-
-  while (std::getline(*streams[0], lines[0])) {
-    for (uint8_t i = 1; i < n_streams; ++i) {
-      std::getline(*streams[i], lines[i]);
+size_t ReadAlignmentFile(const size_t &n_refs, std::istream *stream, bm::bvector<> *bits) {
+  bm::bvector<>::bulk_insert_iterator it(*bits);
+  std::string line;
+  size_t read_id = 0;
+  while (std::getline(*stream, line)) {
+    std::string part;
+    std::stringstream partition(line);
+    std::getline(partition, part, ' ');
+    while (std::getline(partition, part, ' ')) {
+      it = read_id*n_refs + std::stoul(part);
     }
+    ++read_id;
+  }
+  if (bits->size() != read_id*n_refs) {
+    bits->resize(read_id*n_refs); // add trailing zeros
+  }
+  bits->optimize();
+  return read_id;
+}
 
-    for (uint8_t i = 0; i < n_streams; ++i) {
-      std::string part;
-      std::stringstream partition(lines[i]);
-      getline(partition, part, ' ');
-      while (getline(partition, part, ' ')) {
-	  its[i] = n_reads*n_refs + std::stoul(part);
+uint32_t ReadAlignments(const Mode &mode, const uint32_t &n_refs, std::vector<std::istream*> &streams, bm::bvector<> *all_ecs) {
+  // Returns the number of reads processed
+  uint8_t n_streams = streams.size();
+  size_t n_reads = 0;
+
+  for (uint8_t i = 0; i < n_streams; ++i) {
+    if (i == 0) {
+      n_reads = ReadAlignmentFile(n_refs, streams[i], all_ecs);
+    } else {
+      bm::bvector<> bits(n_reads*n_refs, bm::BM_GAP);
+      bits.freeze();
+      size_t n_reads_new = ReadAlignmentFile(n_refs, streams[i], &bits);
+      if (mode == m_intersection) {
+	*all_ecs &= bits;
+      } else {
+	*all_ecs |= bits;
       }
     }
-    ++n_reads;
   }
-
-  (*all_ecs) = bm::bvector<>(allbits[0].size(), bm::BM_GAP);
-  if (mode == m_intersection) {
-    all_ecs->set();
-  }
-  for (uint8_t i = 0; i < n_streams; ++i) {
-    if (mode == m_intersection) {
-      all_ecs->bit_and(allbits[i], bm::bvector<>::opt_compress);
-    } else {
-      all_ecs->bit_or(allbits[i], bm::bvector<>::opt_compress);
-    }
-  }
+  all_ecs->optimize();
+  all_ecs->freeze();
 
   return n_reads;
 }
@@ -159,23 +162,31 @@ uint32_t ReadAndAssign(const Mode &mode, const uint32_t n_refs, std::vector<std:
   return n_reads;
 }
 
-std::vector<bm::bvector<>> CompressAlignment(const bm::bvector<> &all_ecs, const size_t n_refs, const size_t num_alns, std::vector<uint32_t> *ec_counts) {
+bm::bvector<> CompressAlignment(const bm::bvector<> &all_ecs, const size_t n_refs, const size_t num_alns, std::vector<uint32_t> *ec_counts) {
   // Compress the alignment into equivalence classes
-  std::vector<bm::bvector<>> compressed_ec_configs;
-  std::unordered_map<bm::bvector<>, uint32_t> ec_to_pos;
-  uint32_t ec_pos = 0;
-  std::unordered_map<bm::bvector<>, uint32_t>::iterator it;
-  for (unsigned i = 0; i < num_alns; ++i) {
-    bm::bvector<> current_ec(n_refs);
-    bool any_aligned = false;
-    for (size_t j = 0; j < n_refs; ++j) {
-      current_ec[j] = all_ecs[i*n_refs + j];
-      any_aligned |= current_ec[j];
-    }
-    if (any_aligned) {
+  bm::bvector<> compressed_ec_configs;
+  compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
+
+  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+  std::unordered_map<std::vector<bool>, uint32_t>::iterator it;
+
+  size_t ec_pos = 0;
+
+  for (size_t i = 0; i < num_alns; ++i) {
+    if (all_ecs.any_range(i*n_refs, i*n_refs + n_refs - 1)) {
+      std::vector<bool> current_ec(n_refs, false);
+      for (size_t j = 0; j < n_refs; ++j) {
+	current_ec[j] = all_ecs[i*n_refs + j];
+      }
+
       it = ec_to_pos.find(current_ec);
       if (it == ec_to_pos.end()) {
-	compressed_ec_configs.emplace_back(bm::bvector<>(current_ec, bm::finalization::READONLY));
+	for (size_t j = 0; j < n_refs; ++j) {
+	  if (current_ec[j]) {
+	    bv_it = ec_pos*n_refs + j;
+	  }
+	}
 	ec_counts->emplace_back(0);
 	it = ec_to_pos.insert(std::make_pair(current_ec, ec_pos)).first; // return iterator to inserted element
 	++ec_pos;
@@ -211,8 +222,17 @@ namespace read {
 void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
   bm::bvector<> all_ecs;
+  all_ecs.set_new_blocks_strat(bm::BM_GAP);
   aln->n_processed = ReadAlignments(mode, n_refs, streams, &all_ecs);
-  aln->ec_configs = CompressAlignment(all_ecs, n_refs, aln->n_processed, &aln->ec_counts);
+  *aln->get() = CompressAlignment(all_ecs, n_refs, aln->n_processed, &aln->ec_counts);
+
+  if (aln->get()->size() != aln->ec_counts.size()*n_refs) {
+    aln->get()->resize(aln->ec_counts.size()*n_refs); // add trailing zeros
+  }
+  aln->get()->optimize();
+  aln->get()->freeze();
+
+  aln->n_refs = n_refs;
 }
 
 void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
