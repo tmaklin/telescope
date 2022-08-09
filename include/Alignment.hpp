@@ -41,6 +41,7 @@ public:
   size_t reads_in_ec(const size_t &ec_id) const { return this->ec_counts[ec_id]; }
 
   virtual void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) =0;
+  virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
   void clear_counts() {
     this->ec_counts.clear();
@@ -93,7 +94,7 @@ public:
 
   void clear_configs() { this->ec_configs.clear(true); } // free memory
 
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
@@ -145,7 +146,7 @@ private:
   std::vector<std::vector<uint16_t>> ec_group_counts;
 
 public:
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
 
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -174,7 +175,7 @@ public:
   using CompressedAlignment::CompressedAlignment;
 
   const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
