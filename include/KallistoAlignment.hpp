@@ -32,12 +32,12 @@ struct KallistoRunInfo {
     n_targets(n_targets), n_processed(n_processed), n_pseudoaligned(n_pseudoaligned), p_pseudoaligned(((double)n_pseudoaligned/n_processed)*100) {};
   KallistoRunInfo(const CompressedAlignment &aln) {
     n_targets = aln.n_targets();
-    n_processed = aln.n_processed;
+    n_processed = aln.n_reads();
     n_pseudoaligned = 0;
     n_unique = 0;
     for (uint32_t i = 0; i < aln.size(); ++i) {
-      n_unique += (aln.ec_counts[i] == 1);
-      n_pseudoaligned += aln.ec_counts[i];
+      n_unique += (aln.reads_in_ec(i) == 1);
+      n_pseudoaligned += aln.reads_in_ec(i);
     }
     p_unique = (double)n_unique/n_processed;
     p_pseudoaligned = (double)n_pseudoaligned/n_processed;
@@ -57,12 +57,22 @@ struct KallistoRunInfo {
 };
 
 struct KallistoAlignment : public CompressedAlignment{
+  using CompressedAlignment::CompressedAlignment;
   std::vector<uint32_t> ec_ids;
   KallistoRunInfo run_info;
 
   void fill_info() {
-    run_info = KallistoRunInfo(n_targets(), n_processed, size());
+    run_info = KallistoRunInfo(this->n_targets(), this->n_reads(), size());
   }
+
+  void insert(const size_t &ec_id, const size_t &ec_count) {
+    if (ec_count > 0) {
+      this->ec_ids.emplace_back(ec_id);
+      this->ec_counts.emplace_back(ec_count);
+    }
+  }
+
+  size_t get_ec_id(const size_t &ec_pos) const { return this->ec_ids[ec_pos]; }
 };
 }
 

@@ -120,9 +120,8 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
 }
 
 namespace read {
-void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
+void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
-  aln->n_refs = n_refs;
   ReadPairedAlignments(mode, streams, aln);
   CompressAlignment(aln);
 
@@ -130,19 +129,15 @@ void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*
   aln->make_read_only();
 }
 
-void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
+void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
   // Read in group counts
-  aln->n_refs = n_refs;
-  aln->n_groups = n_groups;
-  aln->group_indicators = group_indicators;
   ReadPairedAlignments(mode, streams, aln);
   CompressAlignment(aln);
   aln->clear_configs();
 }
 
-void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
+void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
-  taln->n_refs = n_refs;
   ReadPairedAlignments(mode, streams, taln);
   CompressAlignment(taln);
 
@@ -150,9 +145,9 @@ void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<s
   taln->make_read_only();
 }
 
-void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
+void ThemistoToKallisto(const Mode &mode, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
   // Read in the ec_configs and fill the ec_ids vector
-  Themisto(mode, n_refs, streams, aln);
+  Themisto(mode, streams, aln);
 
   aln->ec_ids = std::vector<uint32_t>(aln->compressed_size(), 0);
   for (uint32_t i = 0; i < aln->compressed_size(); ++i) {

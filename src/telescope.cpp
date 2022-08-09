@@ -89,8 +89,8 @@ int main(int argc, char* argv[]) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
     infile_ptrs.at(i) = &infiles.at(i).stream();
   }
-  telescope::ThemistoAlignment alignments;
-  telescope::read::Themisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs, &alignments);
+  telescope::ThemistoAlignment alignments(n_refs);
+  telescope::read::Themisto(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
 
   telescope::KallistoRunInfo run_info(alignments);
   run_info.call = "";

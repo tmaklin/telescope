@@ -27,19 +27,30 @@
 #include "bm64.h"
 
 namespace telescope {
-struct Alignment {
-  std::vector<uint32_t> ec_counts;
-
+class Alignment {
+protected:
   uint32_t n_processed;
   size_t n_refs;
+  std::vector<uint32_t> ec_counts;
 
+public:
   size_t compressed_size() const { return ec_counts.size(); }
   uint32_t size() const { return this->compressed_size(); } // Backwards compatibility.
   uint32_t n_targets() const { return this->n_refs; }
   size_t n_reads() const { return this->n_processed; }
+  size_t reads_in_ec(const size_t &ec_id) const { return this->ec_counts[ec_id]; }
 
   virtual void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) =0;
 
+  void clear_counts() {
+    this->ec_counts.clear();
+    this->ec_counts.shrink_to_fit();
+  }
+
+  void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
+
+  std::vector<uint32_t>::iterator ec_counts_begin() { return this->ec_counts.begin(); }
+  std::vector<uint32_t>::iterator ec_counts_end() { return this->ec_counts.end(); }
 };
 
 class CompressedAlignment : public Alignment{
@@ -128,10 +139,12 @@ public:
 };
 
 struct GroupedAlignment : public CompressedAlignment {
+private:
   uint16_t n_groups;
   std::vector<uint16_t> group_indicators;
   std::vector<std::vector<uint16_t>> ec_group_counts;
 
+public:
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) {
 
     // Check if the pattern has been observed
@@ -153,9 +166,12 @@ struct GroupedAlignment : public CompressedAlignment {
 };
 
 struct ThemistoAlignment : public CompressedAlignment{
+private:
   std::vector<uint32_t> read_ids;
   std::vector<std::vector<uint32_t>> aligned_reads;
 
+public:
+  const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
