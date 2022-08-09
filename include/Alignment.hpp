@@ -22,6 +22,7 @@
 #include <vector>
 #include <cstddef>
 #include <unordered_map>
+#include <sstream>
 
 #include "bm64.h"
 
@@ -34,6 +35,8 @@ struct Alignment {
 
   uint32_t size() const { return ec_counts.size(); }
   uint32_t n_targets() const { return this->n_refs; }
+
+  virtual void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) =0;
 };
 
 class CompressedAlignment : public Alignment{
@@ -75,6 +78,23 @@ public:
     }
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
   }
+
+  void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file.
+    //
+    std::string part;
+    std::stringstream partition(line);
+    // Skip read id (first column)
+    std::getline(partition, part, ' ');
+    while (std::getline(partition, part, ' ')) {
+      *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+    }
+    ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
+  }
+
+
 };
 
 struct GroupedAlignment : public CompressedAlignment {
@@ -125,6 +145,22 @@ struct ThemistoAlignment : public CompressedAlignment{
     }
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
     this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
+  }
+
+  void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file and includes the read ids.
+    //
+    std::string part;
+    std::stringstream partition(line);
+    std::getline(partition, part, ' ');
+    // Store the read id
+    this->read_ids.emplace_back(std::stoul(part));
+    while (std::getline(partition, part, ' ')) {
+      *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+    }
+    ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
   }
 
 };

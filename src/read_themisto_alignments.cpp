@@ -26,41 +26,7 @@
 #include "bm64.h"
 
 namespace telescope {
-namespace parser {
-void Pseudoalignments(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
-  // telescope::ParseLine
-  //
-  // Parses a line in the pseudoalignment file.
-  //
-  std::string part;
-  std::stringstream partition(line);
-  // Skip read id (first column)
-  std::getline(partition, part, ' ');
-  while (std::getline(partition, part, ' ')) {
-    *it = alignment->n_processed*n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
-  }
-  ++alignment->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
-}
-
-void AlignedReads(const std::string &line, const size_t &n_refs, CompressedAlignment *alignment, bm::bvector<>::bulk_insert_iterator *it) {
-  // telescope::ParseLine
-  //
-  // Parses a line in the pseudoalignment file and includes the read ids.
-  //
-  std::string part;
-  std::stringstream partition(line);
-  std::getline(partition, part, ' ');
-  // Store the read id
-  static_cast<telescope::ThemistoAlignment*>(alignment)->read_ids.emplace_back(std::stoul(part));
-  while (std::getline(partition, part, ' ')) {
-    *it = alignment->n_processed*n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
-  }
-  ++alignment->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
-}
-}
-
-template<typename Function>
-void ReadAlignmentFile(const size_t &n_refs, const Function &Parser, std::istream *stream, CompressedAlignment *_alignment) {
+void ReadAlignmentFile(std::istream *stream, CompressedAlignment *_alignment) {
   // telescope::ReadAlignmentFile
   //
   // Reads in a istream pointing to a single themisto pseudoalignment
@@ -79,18 +45,17 @@ void ReadAlignmentFile(const size_t &n_refs, const Function &Parser, std::istrea
   std::string line;
   _alignment->n_processed = 0;
   while (std::getline(*stream, line)) {
-    Parser(line, n_refs, _alignment, &it);
+    _alignment->parse(line, &it);
   }
 
-  if (alignment->size() != _alignment->n_processed*n_refs) {
+  if (alignment->size() != _alignment->n_processed*_alignment->n_refs) {
     // Add trailing zeros if last alignment did not hit the last reference sequence.
-    alignment->resize(_alignment->n_processed*n_refs);
+    alignment->resize(_alignment->n_processed*_alignment->n_refs);
   }
   alignment->optimize(); // Conserve memory.
 }
 
-template<typename Function>
-void ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, Function &Parser, std::vector<std::istream*> &streams, CompressedAlignment *alignment) {
+void ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, std::vector<std::istream*> &streams, CompressedAlignment *alignment) {
   // telescope::ReadPairedAlignments
   //
   // Reads in one or more pseudoalignment files from themisto for paired reads.
@@ -110,13 +75,14 @@ void ReadPairedAlignments(const Mode &mode, const uint32_t &n_refs, Function &Pa
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
-      ReadAlignmentFile(n_refs, Parser, streams[i], alignment);
+      ReadAlignmentFile(streams[i], alignment);
     } else {
       // Read subsequent alignments into a new bitvector.
       // Size is now known since the paired files should have the same numbers of reads.
       CompressedAlignment pair_alignment;
+      pair_alignment.n_refs = n_refs;
       *pair_alignment.get() = bm::bvector<>(alignment->n_processed*n_refs, bm::BM_GAP);
-      ReadAlignmentFile(n_refs, Parser, streams[i], &pair_alignment);
+      ReadAlignmentFile(streams[i], &pair_alignment);
 
       if (alignment->n_processed != pair_alignment.n_processed) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
@@ -190,7 +156,7 @@ namespace read {
 void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
   aln->n_refs = n_refs;
-  ReadPairedAlignments(mode, n_refs, parser::Pseudoalignments, streams, aln);
+  ReadPairedAlignments(mode, n_refs, streams, aln);
   CompressAlignment(aln);
 
   aln->add_trailing_zeros();
@@ -202,7 +168,7 @@ void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indica
   aln->n_refs = n_refs;
   aln->n_groups = n_groups;
   aln->group_indicators = group_indicators;
-  ReadPairedAlignments(mode, n_refs, parser::Pseudoalignments, streams, aln);
+  ReadPairedAlignments(mode, n_refs, streams, aln);
   CompressAlignment(aln);
   aln->clear_configs();
 }
@@ -210,7 +176,7 @@ void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indica
 void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
   taln->n_refs = n_refs;
-  ReadPairedAlignments(mode, n_refs, parser::AlignedReads, streams, taln);
+  ReadPairedAlignments(mode, n_refs, streams, taln);
   CompressAlignment(taln);
 
   taln->add_trailing_zeros();
