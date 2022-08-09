@@ -36,19 +36,14 @@ void ReadAlignmentFile(std::istream *stream, CompressedAlignment *alignment) {
   //   `stream`: pointer to an istream opened on the pseudoalignment file.
   //   `alignment`: pointer to the object that will contain the results.
   //
-  bm::bvector<> *ec_configs = alignment->get();
-  bm::bvector<>::bulk_insert_iterator it(*ec_configs);
+  bm::bvector<>::bulk_insert_iterator it(*alignment->get());
   std::string line;
-  alignment->n_processed = 0;
   while (std::getline(*stream, line)) {
     alignment->parse(line, &it);
   }
 
-  if (ec_configs->size() != alignment->n_processed*alignment->n_refs) {
-    // Add trailing zeros if last alignment did not hit the last reference sequence.
-    ec_configs->resize(alignment->n_processed*alignment->n_refs);
-  }
-  ec_configs->optimize(); // Conserve memory.
+  alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());
+  alignment->optimize();
 }
 
 void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *alignment) {
@@ -62,8 +57,6 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
   //   `alignment`: pointer to an object that will contain the results.
   //
   uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
-  alignment->n_processed = 0;
-  alignment->get()->set_new_blocks_strat(bm::BM_GAP);
 
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
@@ -72,29 +65,18 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
     } else {
       // Read subsequent alignments into a new bitvector.
       // Size is now known since the paired files should have the same numbers of reads.
-      CompressedAlignment pair_alignment;
-      pair_alignment.n_refs = alignment->n_refs;
-      *pair_alignment.get() = bm::bvector<>(alignment->n_processed*alignment->n_refs, bm::BM_GAP);
+      CompressedAlignment pair_alignment(alignment->n_targets(), alignment->n_reads()); // Initialize with known final size
       ReadAlignmentFile(streams[i], &pair_alignment);
 
-      if (alignment->n_processed != pair_alignment.n_processed) {
+      if (alignment->n_reads() != pair_alignment.n_reads()) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
-      pair_alignment.get()->freeze(); // Make the alignment read-only.
-
-      if (mode == m_intersection) {
-	// m_intersection: both reads in a pair should align to be considered a match.
-	*alignment->get() &= *pair_alignment.get();
-      } else {
-	// m_union or m_unpaired: count alignments regardless of pair's status.
-	*alignment->get() |= *pair_alignment.get();
-      }
+      alignment->merge_pair(mode, pair_alignment);
     }
   }
   // Conserve memory and make alignments read-only.
-  alignment->get()->optimize();
-  alignment->get()->freeze();
+  alignment->make_read_only();
 }
 
 void CompressAlignment(CompressedAlignment *full_alignment) {
@@ -115,18 +97,18 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
   std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
 
   size_t ec_id = 0;
-  for (size_t i = 0; i < full_alignment->n_processed; ++i) {
+  for (size_t i = 0; i < full_alignment->n_reads(); ++i) {
     // Check if the current read aligned against any reference and
     // discard the read if it didn't.
-    if (full_alignment->get()->any_range(i*full_alignment->n_refs, i*full_alignment->n_refs + full_alignment->n_refs - 1)) {
+    if (full_alignment->get()->any_range(i*full_alignment->n_targets(), i*full_alignment->n_targets() + full_alignment->n_targets() - 1)) {
       // Copy the current alignment into a std::vector<bool> for hashing.
       //
       // TODO: implement the std::vector<bool> hash function
       // for bm::bvector<> and use bm::copy_range?
       //
-      std::vector<bool> current_ec(full_alignment->n_refs, false);
-      for (size_t j = 0; j < full_alignment->n_refs; ++j) {
-	current_ec[j] = (*full_alignment->get())[i*full_alignment->n_refs + j];
+      std::vector<bool> current_ec(full_alignment->n_targets(), false);
+      for (size_t j = 0; j < full_alignment->n_targets(); ++j) {
+	current_ec[j] = (*full_alignment->get())[i*full_alignment->n_targets() + j];
       }
 
       // Insert the current equivalence class to the hash map or
@@ -144,8 +126,8 @@ void Themisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*
   ReadPairedAlignments(mode, streams, aln);
   CompressAlignment(aln);
 
-  aln->add_trailing_zeros();
-  aln->optimize_storage();
+  aln->add_trailing_zeros(aln->compressed_size(), aln->n_targets());
+  aln->make_read_only();
 }
 
 void ThemistoGrouped(const Mode &mode, const std::vector<uint16_t> &group_indicators, const uint32_t n_refs, const uint16_t n_groups, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
@@ -164,16 +146,16 @@ void ThemistoAlignedReads(const Mode &mode, const uint32_t n_refs, std::vector<s
   ReadPairedAlignments(mode, streams, taln);
   CompressAlignment(taln);
 
-  taln->add_trailing_zeros();
-  taln->optimize_storage();
+  taln->add_trailing_zeros(taln->compressed_size(), taln->n_targets());
+  taln->make_read_only();
 }
 
 void ThemistoToKallisto(const Mode &mode, const uint32_t n_refs, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
   // Read in the ec_configs and fill the ec_ids vector
   Themisto(mode, n_refs, streams, aln);
 
-  aln->ec_ids = std::vector<uint32_t>(aln->size(), 0);
-  for (uint32_t i = 0; i < aln->size(); ++i) {
+  aln->ec_ids = std::vector<uint32_t>(aln->compressed_size(), 0);
+  for (uint32_t i = 0; i < aln->compressed_size(); ++i) {
     aln->ec_ids[i] = i;
   }
 }

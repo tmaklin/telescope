@@ -33,10 +33,13 @@ struct Alignment {
   uint32_t n_processed;
   size_t n_refs;
 
-  uint32_t size() const { return ec_counts.size(); }
+  size_t compressed_size() const { return ec_counts.size(); }
+  uint32_t size() const { return this->compressed_size(); } // Backwards compatibility.
   uint32_t n_targets() const { return this->n_refs; }
+  size_t n_reads() const { return this->n_processed; }
 
   virtual void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) =0;
+
 };
 
 class CompressedAlignment : public Alignment{
@@ -44,19 +47,38 @@ private:
   bm::bvector<> ec_configs;
 
 public:
+  CompressedAlignment() {
+    this->n_processed = 0;
+    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  };
+  CompressedAlignment(const size_t &_n_refs) {
+    this->n_refs = _n_refs;
+    this->n_processed = 0;
+    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  }
+  CompressedAlignment(const size_t &_n_refs, const size_t &n_to_process) {
+    // Constructor with known final size for ec_configs
+    this->n_refs = _n_refs;
+    this->n_processed = 0;
+    this->ec_configs = bm::bvector<>(_n_refs*n_to_process, bm::BM_GAP);
+  }
+
   bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
   bm::bvector<>* get() { return &this->ec_configs; }
+  const bm::bvector<>& get() const { return this->ec_configs; }
 
-  void add_trailing_zeros() {
-    if (this->ec_configs.size() != this->ec_counts.size()*this->n_refs) {
-      this->ec_configs.resize(this->ec_counts.size()*this->n_refs); // add trailing zeros
+  void add_trailing_zeros(const size_t &rows, const size_t &cols) {
+    if (this->ec_configs.size() != rows*cols) {
+      this->ec_configs.resize(rows*cols); // add trailing zeros
     }
   }
 
-  void optimize_storage() {
+  void make_read_only() {
     this->ec_configs.optimize();
     this->ec_configs.freeze();
   }
+
+  void optimize() { this->ec_configs.optimize(); }
 
   void clear_configs() { this->ec_configs.clear(true); } // free memory
 
@@ -94,7 +116,15 @@ public:
     ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
   }
 
-
+  void merge_pair(const Mode &mode, const CompressedAlignment &pair) {
+    if (mode == m_intersection) {
+      // m_intersection: both reads in a pair should align to be considered a match.
+      this->ec_configs &= pair.get();
+    } else {
+      // m_union or m_unpaired: count alignments regardless of pair's status.
+      this->ec_configs |= pair.get();
+    }
+  }
 };
 
 struct GroupedAlignment : public CompressedAlignment {
