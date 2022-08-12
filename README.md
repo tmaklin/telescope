@@ -1,6 +1,10 @@
 # telescope
-Convert [Themisto](https://github.com/jnalanko/Themisto)
-pseudoalignments to [kallisto](https://github.com/pachterlab/kallisto) pseudoalignments.
+Convert [Themisto](https://github.com/algbio/Themisto)
+pseudoalignments to [kallisto](https://github.com/pachterlab/kallisto)
+pseudoalignments.
+
+Telescope uses the [BitMagic](https://github.com/tlk00/BitMagic)
+library.
 
 # Installation
 Either use the precompiled binary
@@ -55,3 +59,6 @@ not yet implemented...
 
 # License
 telescope is licensed under the GNU Lesser General Public License v2.1. 
+
+## Dependencies
+[BitMagic](https://github.com/tlk00/BitMagic) is licensed under the [Apache-2.0 license](https://opensource.org/licenses/Apache-2.0).
