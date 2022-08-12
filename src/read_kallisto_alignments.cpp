@@ -22,30 +22,34 @@
 #include <string>
 #include <sstream>
 
+#include "bm64.h"
+
 namespace telescope {
-void ReadEquivalenceClasses(const std::vector<uint32_t> &ec_ids, const uint32_t n_refs, std::istream &stream, std::vector<std::vector<bool>> *ec_configs) {
+void ReadEquivalenceClasses(std::istream &stream, KallistoAlignment *aln) {
   std::string line;
-  
+  bm::bvector<>::bulk_insert_iterator it(*aln->get());
+
   uint32_t current_ec_pos = 0;
   while(getline(stream, line)) {
     std::string part;
     std::stringstream partition(line);
     getline(partition, part, '\t');
     uint32_t ec_id = std::stoul(part);
-    if (ec_id == ec_ids[current_ec_pos]) {
-      ec_configs->emplace_back(std::vector<bool>(n_refs, false));
+    if (ec_id == aln->get_ec_id(current_ec_pos)) {
       getline(partition, part, '\t');
-      std::string aln;
+      std::string line;
       std::stringstream alns(part);
-      while(getline(alns, aln, ',')) {
-  	ec_configs->back()[std::stoul(aln)] = true;
+      while(getline(alns, line, ',')) {
+	it = current_ec_pos*aln->n_targets() + std::stoul(line);
       }
       ++current_ec_pos;
     }
   }
+  aln->add_trailing_zeros(current_ec_pos, aln->n_targets());
+  aln->make_read_only();
 }
 
-void ReadAlignmentCounts(std::istream &stream, std::vector<uint32_t> *ec_ids, std::vector<uint32_t> *ec_counts) {
+void ReadAlignmentCounts(std::istream &stream, KallistoAlignment *kaln) {
   std::string line;
   while(getline(stream, line)) {
     std::string part;
@@ -54,23 +58,14 @@ void ReadAlignmentCounts(std::istream &stream, std::vector<uint32_t> *ec_ids, st
     uint32_t ec_id = std::stoul(part);
     getline(partition, part, '\t');
     uint32_t ec_count = std::stoul(part);
-    if (ec_count > 0) {
-      ec_ids->push_back(ec_id);
-      ec_counts->push_back(ec_count);
-    }
+    kaln->insert(ec_id, ec_count);
   }
 }
 
 namespace read {
-void Kallisto(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, CompressedAlignment *aln) {
-  std::vector<uint32_t> ec_ids;
-  ReadAlignmentCounts(tsv_file, &ec_ids, &aln->ec_counts);
-  ReadEquivalenceClasses(ec_ids, n_refs, ec_file, &aln->ec_configs);
-}
-
-void KallistoEcIds(const uint32_t n_refs, std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *kaln) {
-  ReadAlignmentCounts(tsv_file, &kaln->ec_ids, &kaln->ec_counts);
-  ReadEquivalenceClasses(kaln->ec_ids, n_refs, ec_file, &kaln->ec_configs);
+void Kallisto(std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln) {
+  ReadAlignmentCounts(tsv_file, aln);
+  ReadEquivalenceClasses(ec_file, aln);
 }
 }
 }

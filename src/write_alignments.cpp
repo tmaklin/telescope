@@ -27,14 +27,14 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
   for (uint32_t i = 0; i < aln.size(); ++i) {
     std::string aligneds("");
     for (uint32_t j = 0; j < aln.n_targets(); ++j) {
-      if (aln.ec_configs[i][j]) {
+      if (aln(i, j)) {
 	aligneds += std::to_string(j);
 	aligneds += ',';
       }
     }
     aligneds.pop_back();
     *ec_file << ec_id << '\t' << aligneds << '\n';
-    *tsv_file << ec_id << '\t' << aln.ec_counts[i] << '\n';
+    *tsv_file << ec_id << '\t' << aln.reads_in_ec(i) << '\n';
     ++ec_id;
   }
   ec_file->flush();
@@ -43,11 +43,11 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
 
 void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
   for (uint32_t i = 0; i < aln.size(); ++i) {
-    for (uint32_t j = 0; j < aln.aligned_reads[i].size(); ++j) {
-      *out << aln.aligned_reads[i][j] << ' ';
+    for (uint32_t j = 0; j < aln.reads_assigned_to_ec(i).size(); ++j) {
+      *out << aln.reads_assigned_to_ec(i)[j] << ' ';
       std::string aligned_to("");
       for (uint32_t k = 0; k < aln.n_targets(); ++k) {
-	if (aln.ec_configs[i][k]) {
+	if (aln(i, k)) {
 	  aligned_to += std::to_string(k);
 	  aligned_to += ' ';
 	}
