@@ -116,6 +116,7 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
       full_alignment->insert(current_ec, i, &ec_id, &ec_to_pos, &bv_it);
     }
   }
+  bv_it.flush(); // Insert everything
   full_alignment->get()->swap(compressed_ec_configs);
 }
 
