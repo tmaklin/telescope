@@ -39,7 +39,11 @@ void ReadAlignmentFile(std::istream *stream, CompressedAlignment *alignment) {
   bm::bvector<>::bulk_insert_iterator it(*alignment->get());
   std::string line;
   while (std::getline(*stream, line)) {
-    alignment->parse(line, &it);
+    if (alignment->parse_from_buffered()) {
+      alignment->parse(line, stream, alignment->get());
+    } else {
+      alignment->parse(line, &it);
+    }
   }
 
   alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());

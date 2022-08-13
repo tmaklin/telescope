@@ -23,8 +23,10 @@
 #include <cstddef>
 #include <unordered_map>
 #include <sstream>
+#include <cmath>
 
 #include "bm64.h"
+#include "bmserial.h"
 
 namespace telescope {
 class Alignment {
@@ -32,6 +34,7 @@ protected:
   uint32_t n_processed;
   size_t n_refs;
   std::vector<uint32_t> ec_counts;
+  bool parsing_from_buffered = false; // TODO use a function pointer to the correct parse function?
 
 public:
   size_t compressed_size() const { return ec_counts.size(); }
@@ -40,7 +43,11 @@ public:
   size_t n_reads() const { return this->n_processed; }
   size_t reads_in_ec(const size_t &ec_id) const { return this->ec_counts[ec_id]; }
 
+  // Parse plaintext alignments (themisto format)
   virtual void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) =0;
+  // Parse alignments compressed with alignment_writer::BufferedPack.
+  // See https://github.com/tmaklin/alignmen-writer for details.
+  virtual void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) =0;
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
   void clear_counts() {
@@ -49,6 +56,9 @@ public:
   }
 
   void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
+
+  void set_parse_from_buffered() { this->parsing_from_buffered = true; }
+  bool parse_from_buffered() const { return this->parsing_from_buffered; }
 
   std::vector<uint32_t>::iterator ec_counts_begin() { return this->ec_counts.begin(); }
   std::vector<uint32_t>::iterator ec_counts_end() { return this->ec_counts.end(); }
@@ -126,6 +136,30 @@ public:
       *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
     }
     ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
+  }
+
+  void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file.
+    //
+    size_t next_buffer_size = std::stoul(buffer_size_line);
+
+    // Allocate space for the block
+    char* cbuf = new char[next_buffer_size];
+
+    // Read the next block into buf
+    in->read(cbuf, next_buffer_size);
+    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
+
+    // Deserialize block (OR with old data in bits)
+    bm::deserialize(*out, buf);
+
+    bm::bvector<>::size_type last;
+    out->find_reverse(last);
+    size_t last_in_batch = std::ceil(last/n_refs) + 1;
+    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
+    delete[] cbuf;
   }
 
   void merge_pair(const Mode &mode, const CompressedAlignment &pair) {
@@ -212,6 +246,38 @@ public:
     ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
   }
 
+  void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file.
+    //
+    size_t next_buffer_size = std::stoul(buffer_size_line);
+
+    // Allocate space for the block
+    char* cbuf = new char[next_buffer_size];
+
+    // Read the next block into buf
+    in->read(cbuf, next_buffer_size);
+    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
+
+    // Deserialize block (OR with old data in bits)
+    bm::deserialize(*out, buf);
+
+    bm::bvector<>::size_type first;
+    bm::bvector<>::size_type last;
+    out->find(first);
+    out->find_reverse(last);
+
+    size_t last_in_batch = std::ceil(last/n_refs) + 1;
+
+    // Store the read id
+    for (size_t i = std::floor(first/n_refs); i < last_in_batch; ++i) {
+      this->read_ids.emplace_back(i);
+    }
+
+    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
+    delete[] cbuf;
+  }
 };
 }
 
