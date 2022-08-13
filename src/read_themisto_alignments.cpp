@@ -70,6 +70,9 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       // Read subsequent alignments into a new bitvector.
       // Size is now known since the paired files should have the same numbers of reads.
       CompressedAlignment pair_alignment(alignment->n_targets(), alignment->n_reads()); // Initialize with known final size
+      if (alignment->parse_from_buffered()) {
+	pair_alignment.set_parse_from_buffered();
+      }
       ReadAlignmentFile(streams[i], &pair_alignment);
 
       if (alignment->n_reads() != pair_alignment.n_reads()) {
