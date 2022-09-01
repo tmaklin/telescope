@@ -215,6 +215,18 @@ public:
     this->ec_counts[it->second] += 1;
   }
 
+  uint16_t get_group_count(const size_t row, const size_t col) {
+    return this->ec_group_counts[row][col];
+  }
+
+  void reset_group_indicators(const std::vector<uint32_t> &new_group_indicators) {
+    this->group_indicators.assign(new_group_indicators.begin(), new_group_indicators.end());
+  }
+
+  void resize(const size_t new_n_refs, const size_t new_n_groups) {
+    this->n_refs = new_n_refs;
+    this->n_groups = new_n_groups;
+  }
 };
 
 struct ThemistoAlignment : public CompressedAlignment{
