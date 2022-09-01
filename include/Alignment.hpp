@@ -230,6 +230,15 @@ public:
     this->n_refs = new_n_refs;
     this->n_groups = new_n_groups;
   }
+
+  const std::vector<uint16_t>& get_ec_group_counts() const {
+    return this->ec_group_counts;
+  }
+
+  void free_counts() {
+    this->ec_group_counts.clear();
+    this->ec_group_counts.shrink_to_fit();
+  }
 };
 
 struct ThemistoAlignment : public CompressedAlignment{
