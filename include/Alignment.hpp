@@ -65,7 +65,7 @@ public:
 };
 
 class CompressedAlignment : public Alignment{
-private:
+protected:
   bm::bvector<> ec_configs;
 
 public:
@@ -176,16 +176,33 @@ public:
 struct GroupedAlignment : public CompressedAlignment {
 private:
   uint16_t n_groups;
-  std::vector<uint16_t> group_indicators;
-  std::vector<std::vector<uint16_t>> ec_group_counts;
+  std::vector<uint32_t> group_indicators;
 
 public:
+  std::vector<std::vector<uint16_t>> ec_group_counts;
+
+  GroupedAlignment() {
+    this->n_processed = 0;
+    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  }
+
+  GroupedAlignment(const size_t &_n_refs, const size_t &_n_groups, const std::vector<uint32_t> &_group_indicators) {
+    this->n_refs = _n_refs;
+    this->n_groups = _n_groups;
+    this->group_indicators = _group_indicators;
+    this->n_processed = 0;
+    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+  }
+
+  std::vector<size_t> ec_ids;
+
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
 
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       this->ec_counts.emplace_back(0);
+      this->ec_ids.emplace_back(*ec_id);
       it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
       ++(*ec_id);
 
