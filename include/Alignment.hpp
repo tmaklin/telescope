@@ -179,7 +179,7 @@ private:
   std::vector<uint32_t> group_indicators;
 
 public:
-  std::vector<std::vector<uint16_t>> ec_group_counts;
+  std::vector<uint16_t> ec_group_counts;
 
   GroupedAlignment() {
     this->n_processed = 0;
@@ -204,19 +204,22 @@ public:
       this->ec_counts.emplace_back(0);
       this->ec_ids.emplace_back(*ec_id);
       it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
-      ++(*ec_id);
 
-      this->ec_group_counts.emplace_back(std::vector<uint16_t>(this->n_groups, 0));
-      std::vector<uint16_t> *current_read = &this->ec_group_counts.back();
-      for (uint32_t j = 0; j  < this->n_refs; ++j) {
-	(*current_read)[this->group_indicators[j]] += current_ec[j];
+      for (size_t i = 0; i < this->n_groups; ++i) {
+	this->ec_group_counts.emplace_back(0);
       }
+
+      size_t read_start = (*ec_id)*this->n_groups;
+      for (uint32_t j = 0; j  < this->n_refs; ++j) {
+	this->ec_group_counts[read_start + this->group_indicators[j]] += current_ec[j];
+      }
+      ++(*ec_id);
     }
     this->ec_counts[it->second] += 1;
   }
 
   uint16_t get_group_count(const size_t row, const size_t col) {
-    return this->ec_group_counts[row][col];
+    return this->ec_group_counts[row*this->n_groups + col];
   }
 
   void reset_group_indicators(const std::vector<uint32_t> &new_group_indicators) {
