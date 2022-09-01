@@ -82,8 +82,6 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       alignment->merge_pair(mode, pair_alignment);
     }
   }
-  // Conserve memory and make alignments read-only.
-  alignment->make_read_only();
 }
 
 void CompressAlignment(CompressedAlignment *full_alignment) {
