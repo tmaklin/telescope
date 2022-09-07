@@ -26,7 +26,7 @@
 #include "bm64.h"
 
 namespace telescope {
-void ReadAlignmentFile(std::istream *stream, CompressedAlignment *alignment) {
+void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignment *alignment) {
   // telescope::ReadAlignmentFile
   //
   // Reads in a istream pointing to a single themisto pseudoalignment
@@ -36,21 +36,21 @@ void ReadAlignmentFile(std::istream *stream, CompressedAlignment *alignment) {
   //   `stream`: pointer to an istream opened on the pseudoalignment file.
   //   `alignment`: pointer to the object that will contain the results.
   //
-  bm::bvector<>::bulk_insert_iterator it(*alignment->get());
+  bm::bvector<>::bulk_insert_iterator it(*ec_configs);
   std::string line;
   while (std::getline(*stream, line)) {
     if (alignment->parse_from_buffered()) {
-      alignment->parse(line, stream, alignment->get());
+      alignment->parse(line, stream, ec_configs);
     } else {
       alignment->parse(line, &it);
     }
   }
 
-  alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());
-  alignment->optimize();
+  //alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());
+  ec_configs->optimize();
 }
 
-void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *alignment) {
+void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs, Alignment *alignment) {
   // telescope::ReadPairedAlignments
   //
   // Reads in one or more pseudoalignment files from themisto for paired reads.
@@ -65,7 +65,7 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
-      ReadAlignmentFile(streams[i], alignment);
+      ReadAlignmentFile(streams[i], ec_configs, alignment);
     } else {
       // Read subsequent alignments into a new bitvector.
       // Size is now known since the paired files should have the same numbers of reads.
@@ -73,18 +73,24 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       if (alignment->parse_from_buffered()) {
 	pair_alignment.set_parse_from_buffered();
       }
-      ReadAlignmentFile(streams[i], &pair_alignment);
+      ReadAlignmentFile(streams[i], pair_alignment.get(), &pair_alignment);
 
       if (alignment->n_reads() != pair_alignment.n_reads()) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
-      alignment->merge_pair(mode, pair_alignment);
+      if (mode == m_intersection) {
+	// m_intersection: both reads in a pair should align to be considered a match.
+	(*ec_configs) &= *pair_alignment.get();
+      } else {
+	// m_union or m_unpaired: count alignments regardless of pair's status.
+	(*ec_configs) |= *pair_alignment.get();
+      }
     }
   }
 }
 
-void CompressAlignment(CompressedAlignment *full_alignment) {
+void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
   // telescope::CompressAlignment
   //
   // Compresses the full pseudoalignment data into equivalence
@@ -105,7 +111,7 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
   for (size_t i = 0; i < full_alignment->n_reads(); ++i) {
     // Check if the current read aligned against any reference and
     // discard the read if it didn't.
-    if (full_alignment->get()->any_range(i*full_alignment->n_targets(), i*full_alignment->n_targets() + full_alignment->n_targets() - 1)) {
+    if (ec_configs.any_range(i*full_alignment->n_targets(), i*full_alignment->n_targets() + full_alignment->n_targets() - 1)) {
       // Copy the current alignment into a std::vector<bool> for hashing.
       //
       // TODO: implement the std::vector<bool> hash function
@@ -113,7 +119,7 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
       //
       std::vector<bool> current_ec(full_alignment->n_targets(), false);
       for (size_t j = 0; j < full_alignment->n_targets(); ++j) {
-	current_ec[j] = (*full_alignment->get())[i*full_alignment->n_targets() + j];
+	current_ec[j] = ec_configs[i*full_alignment->n_targets() + j];
       }
 
       // Insert the current equivalence class to the hash map or
@@ -122,14 +128,14 @@ void CompressAlignment(CompressedAlignment *full_alignment) {
     }
   }
   bv_it.flush(); // Insert everything
-  full_alignment->get()->swap(compressed_ec_configs);
+  ec_configs.swap(compressed_ec_configs);
 }
 
 namespace read {
 void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
   // Read in only the ec_configs
-  ReadPairedAlignments(mode, streams, aln);
-  CompressAlignment(aln);
+  ReadPairedAlignments(mode, streams, aln->get(), aln);
+  CompressAlignment(*aln->get(), aln);
 
   aln->add_trailing_zeros(aln->compressed_size(), aln->n_targets());
   aln->make_read_only();
@@ -137,15 +143,20 @@ void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedA
 
 void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
   // Read in group counts
-  ReadPairedAlignments(mode, streams, aln);
-  CompressAlignment(aln);
-  aln->clear_configs();
+  bm::bvector<> ec_configs;
+  bm::sparse_vector<uint16_t, bm::bvector<>> sparse_counts;
+  aln->sparse_group_counts = &sparse_counts;
+  ReadPairedAlignments(mode, streams, &ec_configs, aln);
+  CompressAlignment(ec_configs, aln);
+
+  aln->build_group_counts();
+  // aln->make_read_only();
 }
 
 void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
-  ReadPairedAlignments(mode, streams, taln);
-  CompressAlignment(taln);
+  ReadPairedAlignments(mode, streams, taln->get(), taln);
+  CompressAlignment(*taln->get(), taln);
 
   taln->add_trailing_zeros(taln->compressed_size(), taln->n_targets());
   taln->make_read_only();

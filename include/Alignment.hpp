@@ -27,6 +27,7 @@
 
 #include "bm64.h"
 #include "bmserial.h"
+#include "bmsparsevec.h"
 
 namespace telescope {
 class Alignment {
@@ -146,7 +147,7 @@ public:
     size_t next_buffer_size = std::stoul(buffer_size_line);
 
     // Allocate space for the block
-    char* cbuf = new char[next_buffer_size];
+    char* cbuf = new char[next_buffer_size + 1];
 
     // Read the next block into buf
     in->read(cbuf, next_buffer_size);
@@ -173,28 +174,37 @@ public:
   }
 };
 
-struct GroupedAlignment : public CompressedAlignment {
+struct GroupedAlignment : public Alignment {
 private:
   uint16_t n_groups;
   std::vector<uint32_t> group_indicators;
 
 public:
+  bm::sparse_vector<uint16_t, bm::bvector<>> *sparse_group_counts;
   std::vector<uint16_t> ec_group_counts;
 
   GroupedAlignment() {
     this->n_processed = 0;
-    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
   }
 
-  GroupedAlignment(const size_t &_n_refs, const size_t &_n_groups, const std::vector<uint32_t> &_group_indicators) {
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
     this->n_refs = _n_refs;
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = 0;
-    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
   }
 
   std::vector<size_t> ec_ids;
+
+  void build_group_counts() {
+    this->ec_group_counts.resize(this->ec_ids.size()*this->n_groups);
+#pragma omp parallel for schedule(static)
+    for (size_t j = 0; j < this->n_groups; ++j) {
+      for (size_t i = 0; i < this->ec_ids.size(); ++i) {
+	this->ec_group_counts[j*this->ec_ids.size() + i] = (*this->sparse_group_counts)[this->ec_ids[i]*this->n_groups + j];
+      }
+    }
+  }
 
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
 
@@ -211,15 +221,18 @@ public:
 
       size_t read_start = (*ec_id)*this->n_groups;
       for (uint32_t j = 0; j  < this->n_refs; ++j) {
-	this->ec_group_counts[read_start + this->group_indicators[j]] += current_ec[j];
+	if (current_ec[j]) {
+	  this->sparse_group_counts->inc(read_start + this->group_indicators[j]);
+	}
       }
       ++(*ec_id);
     }
     this->ec_counts[it->second] += 1;
   }
 
+  const std::vector<uint16_t>& get_group_counts() const { return this->ec_group_counts; }
   uint16_t get_group_count(const size_t row, const size_t col) {
-    return this->ec_group_counts[row*this->n_groups + col];
+    return this->ec_group_counts[row*this->ec_ids.size() + col];
   }
 
   void reset_group_indicators(const std::vector<uint32_t> &new_group_indicators) {
@@ -238,6 +251,45 @@ public:
   void free_counts() {
     this->ec_group_counts.clear();
     this->ec_group_counts.shrink_to_fit();
+  }
+
+  void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file.
+    //
+    std::string part;
+    std::stringstream partition(line);
+    // Skip read id (first column)
+    std::getline(partition, part, ' ');
+    while (std::getline(partition, part, ' ')) {
+      *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+    }
+    ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
+  }
+
+  void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) override {
+    // telescope::ParseLine
+    //
+    // Parses a line in the pseudoalignment file.
+    //
+    size_t next_buffer_size = std::stoul(buffer_size_line);
+
+    // Allocate space for the block
+    char* cbuf = new char[next_buffer_size + 1];
+
+    // Read the next block into buf
+    in->read(cbuf, next_buffer_size);
+    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
+
+    // Deserialize block (OR with old data in bits)
+    bm::deserialize(*out, buf);
+
+    bm::bvector<>::size_type last;
+    out->find_reverse(last);
+    size_t last_in_batch = std::ceil(last/n_refs) + 1;
+    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
+    delete[] cbuf;
   }
 };
 
@@ -295,7 +347,7 @@ public:
     size_t next_buffer_size = std::stoul(buffer_size_line);
 
     // Allocate space for the block
-    char* cbuf = new char[next_buffer_size];
+    char* cbuf = new char[next_buffer_size + 1];
 
     // Read the next block into buf
     in->read(cbuf, next_buffer_size);
