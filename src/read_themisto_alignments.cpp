@@ -156,6 +156,7 @@ void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, Grou
 void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
   ReadPairedAlignments(mode, streams, taln->get(), taln);
+  taln->fill_read_ids();
   CompressAlignment(*taln->get(), taln);
 
   taln->add_trailing_zeros(taln->compressed_size(), taln->n_targets());

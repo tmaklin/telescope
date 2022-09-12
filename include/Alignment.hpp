@@ -331,8 +331,7 @@ public:
     std::string part;
     std::stringstream partition(line);
     std::getline(partition, part, ' ');
-    // Store the read id
-    this->read_ids.emplace_back(std::stoul(part));
+
     while (std::getline(partition, part, ' ')) {
       *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
     }
@@ -363,14 +362,15 @@ public:
 
     size_t last_in_batch = std::ceil(last/n_refs) + 1;
 
-    // Store the read id
-    for (size_t i = std::floor(first/n_refs); i < last_in_batch; ++i) {
-      this->read_ids.emplace_back(i);
-    }
-
     this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
     delete[] cbuf;
   }
+    void fill_read_ids() {
+	this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
+	for (size_t i = 0; i < this->n_processed; ++i) {
+	    this->read_ids[i] = i;
+	}
+    }
 };
 }
 
