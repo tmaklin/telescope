@@ -15,8 +15,8 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
-
-#include "telescope.hpp"
+//
+#include "read_themisto_alignments.hpp"
 
 #include <string>
 #include <sstream>
@@ -24,6 +24,8 @@
 #include <functional>
 
 #include "bm64.h"
+
+#include "telescope.hpp"
 
 namespace telescope {
 void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignment *alignment) {
