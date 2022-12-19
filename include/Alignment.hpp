@@ -21,13 +21,13 @@
 
 #include <vector>
 #include <cstddef>
-#include <unordered_map>
 #include <sstream>
 #include <cmath>
 
 #include "bm64.h"
 #include "bmserial.h"
 #include "bmsparsevec.h"
+#include "unordered_dense.h"
 
 namespace telescope {
 class Alignment {
@@ -49,7 +49,7 @@ public:
   // Parse alignments compressed with alignment_writer::BufferedPack.
   // See https://github.com/tmaklin/alignmen-writer for details.
   virtual void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) =0;
-  virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
+  virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, ankerl::unordered_dense::map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
   void clear_counts() {
     this->ec_counts.clear();
@@ -105,9 +105,9 @@ public:
 
   void clear_configs() { this->ec_configs.clear(true); } // free memory
 
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, ankerl::unordered_dense::map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
-    std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+    ankerl::unordered_dense::map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       // Add new patterns to compressed_ec_configs.
       for (size_t j = 0; j < this->n_refs; ++j) {
@@ -231,10 +231,10 @@ public:
     }
   }
 
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, ankerl::unordered_dense::map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
 
     // Check if the pattern has been observed
-    std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+    ankerl::unordered_dense::map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       this->ec_counts.emplace_back(0);
       this->ec_ids.emplace_back(*ec_id);
@@ -336,9 +336,9 @@ public:
   using CompressedAlignment::CompressedAlignment;
 
   const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
-  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
+  void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, ankerl::unordered_dense::map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
-    std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
+    ankerl::unordered_dense::map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       // Add new patterns to compressed_ec_configs.
       for (size_t j = 0; j < this->n_refs; ++j) {

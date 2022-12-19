@@ -135,6 +135,9 @@ else()
 endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
+set(CMAKE_UNORDERED_DENSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/unordered_dense/include/ankerl)
+include_directories(${CMAKE_UNORDERED_DENSE_HEADERS})
+
 include_directories(include ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS} ${CMAKE_BITMAGIC_HEADERS})
 
 ## Get version number from git tags

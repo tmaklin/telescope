@@ -20,10 +20,10 @@
 
 #include <string>
 #include <sstream>
-#include <unordered_map>
 #include <functional>
 
 #include "bm64.h"
+#include "unordered_dense.h"
 
 #include "telescope.hpp"
 
@@ -107,7 +107,7 @@ void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
   bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
 
   // Need to hash the alignment patterns to count the times they appear.
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+  ankerl::unordered_dense::map<std::vector<bool>, uint32_t> ec_to_pos;
 
   size_t ec_id = 0;
   for (size_t i = 0; i < full_alignment->n_reads(); ++i) {
