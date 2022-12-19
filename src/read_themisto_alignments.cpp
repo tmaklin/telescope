@@ -149,6 +149,7 @@ void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, Grou
   bm::sparse_vector<uint16_t, bm::bvector<>> sparse_counts;
   aln->sparse_group_counts = &sparse_counts;
   ReadPairedAlignments(mode, streams, &ec_configs, aln);
+  aln->fill_read_ids();
   CompressAlignment(ec_configs, aln);
 
   aln->build_group_counts();

@@ -199,6 +199,9 @@ private:
   uint16_t n_groups;
   std::vector<uint32_t> group_indicators;
 
+  std::vector<uint32_t> read_ids;
+  std::vector<std::vector<uint32_t>> aligned_reads;
+
 public:
   bm::sparse_vector<uint16_t, bm::bvector<>> *sparse_group_counts;
   std::vector<uint16_t> ec_group_counts;
@@ -215,6 +218,8 @@ public:
   }
 
   std::vector<size_t> ec_ids;
+
+  const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
 
   void build_group_counts() {
     this->ec_group_counts.resize(this->ec_ids.size()*this->n_groups);
@@ -245,9 +250,11 @@ public:
 	  this->sparse_group_counts->inc(read_start + this->group_indicators[j]);
 	}
       }
+      this->aligned_reads.emplace_back(std::vector<uint32_t>());
       ++(*ec_id);
     }
     this->ec_counts[it->second] += 1;
+    this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
   }
 
   const std::vector<uint16_t>& get_group_counts() const { return this->ec_group_counts; }
@@ -310,6 +317,13 @@ public:
     size_t last_in_batch = std::ceil(last/n_refs) + 1;
     this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
     delete[] cbuf;
+  }
+
+  void fill_read_ids() {
+    this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
+    for (size_t i = 0; i < this->n_processed; ++i) {
+      this->read_ids[i] = i;
+    }
   }
 };
 
