@@ -62,6 +62,11 @@ public:
   void set_parse_from_buffered() { this->parsing_from_buffered = true; }
   bool parse_from_buffered() const { return this->parsing_from_buffered; }
 
+  void set_n_reads(const size_t _n_reads) {
+    if (this->parsing_from_buffered)
+      this->n_processed = _n_reads;
+  }
+
   std::vector<uint32_t>::iterator ec_counts_begin() { return this->ec_counts.begin(); }
   std::vector<uint32_t>::iterator ec_counts_end() { return this->ec_counts.end(); }
 };
@@ -146,7 +151,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
+    alignment_writer::DeserializeBuffer(next_buffer_size, in, out);
   }
 
   void merge_pair(const Mode &mode, const CompressedAlignment &pair) {
@@ -287,7 +292,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
+    alignment_writer::DeserializeBuffer(next_buffer_size, in, out);
   }
 
   void fill_read_ids() {
@@ -349,7 +354,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
+    alignment_writer::DeserializeBuffer(next_buffer_size, in, out);
   }
     void fill_read_ids() {
 	this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
