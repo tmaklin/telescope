@@ -28,6 +28,7 @@
 #include "bm64.h"
 #include "bmserial.h"
 #include "bmsparsevec.h"
+#include "unpack.hpp"
 
 namespace telescope {
 class Alignment {
@@ -145,22 +146,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-
-    // Allocate space for the block
-    char* cbuf = new char[next_buffer_size + 1];
-
-    // Read the next block into buf
-    in->read(cbuf, next_buffer_size);
-    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
-
-    // Deserialize block (OR with old data in bits)
-    bm::deserialize(*out, buf);
-
-    bm::bvector<>::size_type last;
-    out->find_reverse(last);
-    size_t last_in_batch = std::ceil(last/n_refs) + 1;
-    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
-    delete[] cbuf;
+    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
   }
 
   void merge_pair(const Mode &mode, const CompressedAlignment &pair) {
@@ -301,22 +287,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-
-    // Allocate space for the block
-    char* cbuf = new char[next_buffer_size + 1];
-
-    // Read the next block into buf
-    in->read(cbuf, next_buffer_size);
-    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
-
-    // Deserialize block (OR with old data in bits)
-    bm::deserialize(*out, buf);
-
-    bm::bvector<>::size_type last;
-    out->find_reverse(last);
-    size_t last_in_batch = std::ceil(last/n_refs) + 1;
-    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
-    delete[] cbuf;
+    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
   }
 
   void fill_read_ids() {
@@ -378,26 +349,7 @@ public:
     // Parses a line in the pseudoalignment file.
     //
     size_t next_buffer_size = std::stoul(buffer_size_line);
-
-    // Allocate space for the block
-    char* cbuf = new char[next_buffer_size + 1];
-
-    // Read the next block into buf
-    in->read(cbuf, next_buffer_size);
-    unsigned char* buf = reinterpret_cast<unsigned char*>(const_cast<char*>(cbuf));
-
-    // Deserialize block (OR with old data in bits)
-    bm::deserialize(*out, buf);
-
-    bm::bvector<>::size_type first;
-    bm::bvector<>::size_type last;
-    out->find(first);
-    out->find_reverse(last);
-
-    size_t last_in_batch = std::ceil(last/n_refs) + 1;
-
-    this->n_processed = (this->n_processed > last_in_batch ? this->n_processed : last_in_batch);
-    delete[] cbuf;
+    alignment_writer::DeserializeBuffer(next_buffer_size + 1, in, out);
   }
     void fill_read_ids() {
 	this->read_ids = std::vector<uint32_t>(this->n_processed, 0);

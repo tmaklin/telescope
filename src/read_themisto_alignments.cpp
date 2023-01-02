@@ -22,8 +22,10 @@
 #include <sstream>
 #include <unordered_map>
 #include <functional>
+#include <memory>
 
 #include "bm64.h"
+#include "unpack.hpp"
 
 #include "telescope.hpp"
 
@@ -48,7 +50,6 @@ void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignmen
     }
   }
 
-  //alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());
   ec_configs->optimize();
 }
 
@@ -64,29 +65,40 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
   //
   uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
 
+  size_t n_reads;
+  size_t n_refs;
+  if (alignment->parse_from_buffered()) {
+    alignment_writer::ReadHeader(streams[0], &n_reads, &n_refs);
+    ec_configs->resize(n_refs*n_reads);
+  }
+
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
       ReadAlignmentFile(streams[i], ec_configs, alignment);
     } else {
-      // Read subsequent alignments into a new bitvector.
-      // Size is now known since the paired files should have the same numbers of reads.
-      CompressedAlignment pair_alignment(alignment->n_targets(), alignment->n_reads()); // Initialize with known final size
+      // Read subsequent alignments into a CompressedAlignment object.
+      std::unique_ptr<CompressedAlignment> pair_alignment;
       if (alignment->parse_from_buffered()) {
-	pair_alignment.set_parse_from_buffered();
+	// Size is known since it is given in the file format
+	pair_alignment.reset(new CompressedAlignment(n_refs, n_reads));
+	pair_alignment.get()->set_parse_from_buffered();
+      } else {
+	// Size is now known since the paired files should have the same numbers of reads.
+	pair_alignment.reset(new CompressedAlignment(alignment->n_targets(), alignment->n_reads()));
       }
-      ReadAlignmentFile(streams[i], pair_alignment.get(), &pair_alignment);
+      ReadAlignmentFile(streams[i], pair_alignment.get()->get(), pair_alignment.get());
 
-      if (alignment->n_reads() != pair_alignment.n_reads()) {
+      if (alignment->n_reads() != pair_alignment.get()->n_reads()) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
       if (mode == m_intersection) {
 	// m_intersection: both reads in a pair should align to be considered a match.
-	(*ec_configs) &= *pair_alignment.get();
+	(*ec_configs) &= *pair_alignment.get()->get();
       } else {
 	// m_union or m_unpaired: count alignments regardless of pair's status.
-	(*ec_configs) |= *pair_alignment.get();
+	(*ec_configs) |= *pair_alignment.get()->get();
       }
     }
   }
