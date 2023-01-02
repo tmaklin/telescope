@@ -72,10 +72,11 @@ if (DEFINED CMAKE_BITMAGIC_HEADERS)
 else()
   set(CMAKE_BITMAGIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/BitMagic-7.12.3/src)
 endif()
+include_directories(${CMAKE_BITMAGIC_HEADERS})
 
 ## Own header files
-set(CMAKE_TELESCOPE_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(CMAKE_TELESCOPE_LIBRARY ${CMAKE_BINARY_DIR}/lib/libtelescope)
+set(CMAKE_TELESCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_TELESCOPE_HEADERS})
 
 ## bxzstr
 if (DEFINED CMAKE_BXZSTR_HEADERS)
@@ -96,6 +97,7 @@ else()
   endif()
   set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
 endif()
+include_directories(${CMAKE_BXZSTR_HEADERS})
 
 ## cxxargs
 if (DEFINED CMAKE_CXXARGS_HEADERS)
@@ -116,6 +118,7 @@ else()
   endif()
   set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
 endif()
+include_directories(${CMAKE_CXXARGS_HEADERS})
 
 ## cxxio
 if (DEFINED CMAKE_CXXIO_HEADERS)
@@ -163,8 +166,6 @@ else()
   set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/include)
 endif()
 include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
-
-include_directories(${CMAKE_TELESCOPE_HEADERS} ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS} ${CMAKE_BITMAGIC_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)
