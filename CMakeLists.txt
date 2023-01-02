@@ -139,11 +139,9 @@ endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
 ## alignment-writer
-if (DEFINED CMAKE_ALIGNMENT_WRITER_LIBRARY AND DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS)
+if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS)
   message(STATUS "alignment-writer headers provided in: ${CMAKE_ALIGNMENT_WRITER_HEADERS}")
-  message(STATUS "libalignmentwriter provided in: ${CMAKE_ALIGNMENT_WRITER_LIBRARY}")
-  find_library(ALIGNMENT_WRITER NAMES alignmentwriter HINTS ${CMAKE_ALIGNMENT_WRITER_LIBRARY})
-  target_link_libraries(telescope ${ALIGNMENT_WRITER})
+  target_link_libraries(telescope libalignmentwriter)
 else()
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-alignment-writer.txt.in ${CMAKE_BINARY_DIR}/external/alignment-writer-download/CMakeLists.txt)
   execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -164,7 +162,7 @@ else()
   target_link_libraries(telescope libalignmentwriter)
   set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/include)
 endif()
-include_directories("${CMAKE_ALIGNMENT_WRITER_HEADERS}")
+include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
 
 include_directories(${CMAKE_TELESCOPE_HEADERS} ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS} ${CMAKE_BITMAGIC_HEADERS})
 
