@@ -30,7 +30,7 @@ struct KallistoRunInfo {
   KallistoRunInfo() = default;
   KallistoRunInfo(uint32_t n_targets, uint32_t n_processed, uint32_t n_pseudoaligned) :
     n_targets(n_targets), n_processed(n_processed), n_pseudoaligned(n_pseudoaligned), p_pseudoaligned(((double)n_pseudoaligned/n_processed)*100) {};
-  KallistoRunInfo(const CompressedAlignment &aln) {
+  KallistoRunInfo(const ThemistoAlignment &aln) {
     n_targets = aln.n_targets();
     n_processed = aln.n_reads();
     n_pseudoaligned = 0;
@@ -56,8 +56,8 @@ struct KallistoRunInfo {
   std::string call;
 };
 
-struct KallistoAlignment : public CompressedAlignment{
-  using CompressedAlignment::CompressedAlignment;
+struct KallistoAlignment : public ThemistoAlignment{
+  using ThemistoAlignment::ThemistoAlignment;
   std::vector<uint32_t> ec_ids;
   KallistoRunInfo run_info;
 

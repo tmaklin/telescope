@@ -78,17 +78,17 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       // Read the first alignments in-place to the output variable.
       ReadAlignmentFile(streams[i], ec_configs, alignment);
     } else {
-      // Read subsequent alignments into a CompressedAlignment object.
-      std::unique_ptr<CompressedAlignment> pair_alignment;
+      // Read subsequent alignments into a ThemistoAlignment object.
+      std::unique_ptr<ThemistoAlignment> pair_alignment;
       if (alignment->parse_from_buffered()) {
 	alignment_writer::ReadHeader(streams[i], &n_reads, &n_refs); // TODO check that the numbers are equal?
 	// Size is known since it is given in the file format
-	pair_alignment.reset(new CompressedAlignment(n_refs, n_reads));
+	pair_alignment.reset(new ThemistoAlignment(n_refs, n_reads));
 	pair_alignment.get()->set_parse_from_buffered();
 	pair_alignment->set_n_reads(n_reads);
       } else {
 	// Size is now known since the paired files should have the same numbers of reads.
-	pair_alignment.reset(new CompressedAlignment(alignment->n_targets(), alignment->n_reads()));
+	pair_alignment.reset(new ThemistoAlignment(alignment->n_targets(), alignment->n_reads()));
       }
       ReadAlignmentFile(streams[i], pair_alignment.get()->get(), pair_alignment.get());
 
@@ -149,7 +149,7 @@ void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
 }
 
 namespace read {
-void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
+void Themisto(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln) {
   // Read in only the ec_configs
   ReadPairedAlignments(mode, streams, aln->get(), aln);
   CompressAlignment(*aln->get(), aln);
@@ -158,7 +158,7 @@ void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedA
   aln->make_read_only();
 }
 
-void ThemistoPlain(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
+void ThemistoPlain(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln) {
   // Read in the plain alignment without compacting to equivalence classes
   ReadPairedAlignments(mode, streams, aln->get(), aln);
   aln->add_trailing_zeros(aln->n_reads(), aln->n_targets());
