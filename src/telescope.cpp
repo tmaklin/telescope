@@ -27,6 +27,7 @@
 
 #include "cxxargs.hpp"
 #include "cxxio.hpp"
+#include "pack.hpp"
 
 #include "version.h"
 #include "log.hpp"
@@ -121,7 +122,7 @@ int main(int argc, char* argv[]) {
     log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");
     if (args.value<bool>("write-compact")) {
-      alignments.write_alignment(&alignment_file.stream());
+      alignment_writer::Pack(n_refs, alignments.n_reads(), *alignments.get(), &alignment_file.stream());
     } else {
       throw std::runtime_error("Writing plaintext Themisto alignments is currently unsupported, use alignment-writer to decompress the files.");
     }

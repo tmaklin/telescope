@@ -162,25 +162,6 @@ public:
     }
   }
 
-  void write_alignment(std::ostream *out) const {
-    // Next settings provide the lowest size (see BitMagic documentation/examples)
-    bm::serializer<bm::bvector<>> bvs;
-    bvs.byte_order_serialization(false);
-    bvs.gap_length_serialization(false);
-
-    // Use serialization buffer class (automatic RAI, freed on destruction)
-    bm::serializer<bm::bvector<>>::buffer sbuf;
-    bvs.serialize(this->ec_configs, sbuf);
-
-    //  Write to *out
-    auto sz = sbuf.size();
-    *out << sz << std::endl;
-    unsigned char* buf = sbuf.data();
-    for (size_t i = 0; i < sz; ++i) {
-      *out << buf[i];
-    }
-    out->flush(); // Flush
-  }
 };
 
 struct GroupedAlignment : public Alignment {
