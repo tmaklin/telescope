@@ -44,6 +44,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
   args.add_long_argument<bool>("read-compact", "Read alignments that have been compressed with alignment-writer (default: false).", false);
   args.add_long_argument<bool>("write-compact", "Write themisto format alignments in alignment-writer compressed format (default: true).", true);
+  args.add_long_argument<bool>("cin", "Read the last alignment file from cin (default: false).", false);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
   args.add_long_argument<bool>("help", "Print the help message.", false);
   if (CmdOptionPresent(argv, argv+argc, "--help")) {
@@ -82,6 +83,9 @@ int main(int argc, char* argv[]) {
   for (size_t i = 0; i < args.value<std::vector<std::string>>('r').size(); ++i) {
     infiles.at(i).open(args.value<std::vector<std::string>>('r').at(i));
     infile_ptrs.at(i) = &infiles.at(i).stream();
+  }
+  if (args.value<bool>("cin")) {
+    infile_ptrs.push_back(&std::cin);
   }
 
   uint32_t n_refs = args.value<uint32_t>("n-refs");

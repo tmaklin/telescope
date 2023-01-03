@@ -74,6 +74,7 @@ telescope -r <strand_1>,<strand_2> -o <output prefix> --n-refs <number of pseudo
 --mode	        How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)
 --read-compact	Read alignments that have been compressed with alignment-writer (default: false).
 --write-compact	Write themisto format alignments in alignment-writer compressed format (default: true).
+--cin           Read the last alignment file from cin (default: false).
 --silent	    Suppress status messages (default: false)
 --help	        Print the help message.
 ```
