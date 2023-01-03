@@ -158,6 +158,13 @@ void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedA
   aln->make_read_only();
 }
 
+void ThemistoPlain(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
+  // Read in the plain alignment without compacting to equivalence classes
+  ReadPairedAlignments(mode, streams, aln->get(), aln);
+  aln->add_trailing_zeros(aln->n_reads(), aln->n_targets());
+  aln->make_read_only();
+}
+
 void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
   // Read in group counts
   bm::bvector<> ec_configs;

@@ -31,6 +31,7 @@ namespace telescope {
 namespace read {
 // Themisto input
 void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln);
+void ThemistoPlain(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln);
 void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln);
 void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln);
 void ThemistoToKallisto(const Mode &mode, std::vector<std::istream*> &streams, KallistoAlignment *aln);

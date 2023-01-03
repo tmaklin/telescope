@@ -40,7 +40,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_short_argument<std::vector<std::string>>('r', "Themisto pseudoalignment(s)");
   args.add_short_argument<std::string>('o', "Output file directory.");
   args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
-  args.add_long_argument<std::string>("format", "Output format (kallisto or themisto, default: kallisto", "kallisto");
+  args.add_long_argument<bool>("merge", "Merge the themisto alignments rather than converting to kallisto format (default: false).", false);
   args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
   args.add_long_argument<bool>("read-compact", "Read alignments that have been compressed with alignment-writer (default: false).", false);
   args.add_long_argument<bool>("write-compact", "Write themisto format alignments in alignment-writer compressed format (default: true).", true);
@@ -52,9 +52,6 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
     log.flush();
   }
   args.parse(argc, argv);
-  if (args.value<std::string>("format") != "kallisto" || args.value<std::string>("format") != "themisto") {
-    throw std::invalid_argument("--format must be one of kallisto or themisto.");
-  }
 }
 }
 
@@ -94,9 +91,10 @@ int main(int argc, char* argv[]) {
   if (args.value<bool>("read-compact")) {
     alignments.set_parse_from_buffered();
   }
-  telescope::read::ThemistoAlignedReads(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
 
-  if (args.value<std::string>("format") == "kallisto") {
+  if (!args.value<bool>("merge")) {
+    telescope::read::ThemistoAlignedReads(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
+
     log << "Writing Kallisto format alignments\n";
     telescope::KallistoRunInfo run_info(alignments);
     run_info.call = "";
@@ -118,6 +116,8 @@ int main(int argc, char* argv[]) {
     cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
     telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
   } else {
+    telescope::read::ThemistoPlain(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
+
     log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");
     if (args.value<bool>("write-compact")) {
