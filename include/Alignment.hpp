@@ -202,8 +202,6 @@ public:
 
   std::vector<size_t> ec_ids;
 
-  const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
-
   void build_group_counts() {
     this->ec_group_counts.resize(this->ec_ids.size()*this->n_groups);
 #pragma omp parallel for schedule(static)
@@ -261,13 +259,6 @@ public:
   void free_counts() {
     this->ec_group_counts.clear();
     this->ec_group_counts.shrink_to_fit();
-  }
-
-  void fill_read_ids() {
-    this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
-    for (size_t i = 0; i < this->n_processed; ++i) {
-      this->read_ids[i] = i;
-    }
   }
 };
 }
