@@ -204,7 +204,6 @@ public:
 
   void build_group_counts() {
     this->ec_group_counts.resize(this->ec_ids.size()*this->n_groups);
-#pragma omp parallel for schedule(static)
     for (size_t j = 0; j < this->n_groups; ++j) {
       for (size_t i = 0; i < this->ec_ids.size(); ++i) {
 	this->ec_group_counts[j*this->ec_ids.size() + i] = (*this->sparse_group_counts)[this->ec_ids[i]*this->n_groups + j];
