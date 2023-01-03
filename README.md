@@ -54,8 +54,29 @@ reads must match for the union and intersection options to make sense)
 telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt,pseudos_3.txt,pseudos_4.txt -o kallisto_out_folder --mode union
 ```
 
+## Merge Themisto paired alignment files
+Convert two pseudoalignments from paired-end reads to a single `pseudos.aln` file by intersecting the pseudoalignments
+```
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o pseudos --format themisto
+```
+
 ## Kallisto to Themisto
 not yet implemented...
+
+## Accepted options
+telescope accepts the following flags
+```
+telescope -r <strand_1>,<strand_2> -o <output prefix> --n-refs <number of pseudoalignment targets>
+-r              Themisto pseudoalignment(s)
+-o	            Output file directory.
+--n-refs        Number of reference sequences in the pseudoalignment.
+--format	    Output format (kallisto or themisto, default: kallisto
+--mode	        How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)
+--read-compact	Read alignments that have been compressed with alignment-writer (default: false).
+--write-compact	Write themisto format alignments in alignment-writer compressed format (default: true).
+--silent	    Suppress status messages (default: false)
+--help	        Print the help message.
+```
 
 # License
 telescope is licensed under the GNU Lesser General Public License v2.1. 
