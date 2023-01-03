@@ -152,6 +152,7 @@ namespace read {
 void Themisto(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln) {
   // Read in only the ec_configs
   ReadPairedAlignments(mode, streams, aln->get(), aln);
+  aln->fill_read_ids();
   CompressAlignment(*aln->get(), aln);
 
   aln->add_trailing_zeros(aln->compressed_size(), aln->n_targets());
