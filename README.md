@@ -31,27 +31,27 @@ or follow the instructions for compiling telescope and libtelescope from source.
 
 # Usage
 ## Themisto to kallisto
-Convert a single pseudoalignment against 'themisto-index' to kallisto format
+Convert a single pseudoalignment against 10 reference sequences to kallisto format
 ```
-telescope --index themisto-index -r pseudos_1.txt -o kallisto_out_folder
+telescope --n-refs 10 -r pseudos_1.txt -o kallisto_out_folder
 ```
 ... paired-end reads (pseudoaligned separately) considering a read aligned when __either__ of the reads align
 ```
-telescope --index themisto-index -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode union
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode union
 ```
 ... considering a read aligned when __both__ of the reads align
 ```
-telescope --index themisto-index -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode intersection
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode intersection
 ```
 ... considering the reads separately (read ids in the second file will
 be incremented by the number of reads in the first file)
 ```
-telescope --index themisto-index -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode unpaired
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode unpaired
 ```
 ... go crazy and do the same with multiple files (the order of the
 reads must match for the union and intersection options to make sense)
 ```
-telescope --index themisto-index -r pseudos_1.txt,pseudos_2.txt,pseudos_3.txt,pseudos_4.txt -o kallisto_out_folder --mode union
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt,pseudos_3.txt,pseudos_4.txt -o kallisto_out_folder --mode union
 ```
 
 ## Kallisto to Themisto
