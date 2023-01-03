@@ -94,9 +94,10 @@ int main(int argc, char* argv[]) {
   if (args.value<bool>("read-compact")) {
     alignments.set_parse_from_buffered();
   }
-  telescope::read::Themisto(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
+  telescope::read::ThemistoAlignedReads(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
 
   if (args.value<std::string>("format") == "kallisto") {
+    log << "Writing Kallisto format alignments\n";
     telescope::KallistoRunInfo run_info(alignments);
     run_info.call = "";
     run_info.start_time = std::chrono::system_clock::to_time_t(log.start_time);
@@ -105,7 +106,7 @@ int main(int argc, char* argv[]) {
       run_info.call += (i == argc - 1 ? "" : " ");
     }
 
-    log << "Writing converted alignments\n";
+    log << "Writing converted alignment\n";
     cxxio::Out ec_file(args.value<std::string>('o') + "/pseudoalignments.ec");
     cxxio::Out tsv_file(args.value<std::string>('o') + "/pseudoalignments.tsv");
     telescope::write::ThemistoToKallisto(alignments, &ec_file.stream(), &tsv_file.stream());
@@ -117,6 +118,7 @@ int main(int argc, char* argv[]) {
     cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
     telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
   } else {
+    log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");
     if (args.value<bool>("write-compact")) {
       alignments.write_alignment(&alignment_file.stream());
