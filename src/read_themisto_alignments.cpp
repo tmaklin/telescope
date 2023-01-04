@@ -44,13 +44,75 @@ void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignmen
   std::string line;
   while (std::getline(*stream, line)) {
     if (alignment->parse_from_buffered()) {
-      alignment->parse(line, stream, ec_configs);
+      size_t next_buffer_size = std::stoul(line);
+      alignment_writer::DeserializeBuffer(next_buffer_size, stream, ec_configs);
     } else {
-      alignment->parse(line, &it);
+      std::string part;
+      std::stringstream partition(line);
+
+      std::getline(partition, part, ' ');
+      size_t read_id = std::stoul(part);
+
+      while (std::getline(partition, part, ' ')) {
+	it = read_id*alignment->n_targets() + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+      }
+      alignment->add_read(read_id);
     }
   }
+  it.flush();
+}
 
-  ec_configs->optimize();
+void Merge(const bm::set_operation &op, const bm::bvector<> &tmp, const size_t n_refs, const size_t read_id, bm::bvector<> *ec_configs) {
+  for (size_t j = 0; j < n_refs; ++j) {
+    size_t pos = read_id*n_refs + j;
+    if (op == bm::set_AND) {
+      // Intersection mode
+      (*ec_configs)[pos] = (*ec_configs)[pos] && tmp[pos];
+    } else {
+      // Union or unpaired mode
+      (*ec_configs)[pos] =(*ec_configs)[pos] || tmp[pos];
+    }
+  }
+}
+
+void MergePairedAlignment(const bm::set_operation &op, const size_t n_refs, const bool parse_from_buffered, std::istream *stream, bm::bvector<> *ec_configs) {
+  std::string line;
+  while (std::getline(*stream, line)) {
+    if (parse_from_buffered) {
+      // buffereiden väliin jääviä linjaamattomia ei nyt intersektoida
+      size_t next_buffer_size = std::stoul(line);
+      bm::bvector<> tmp;
+      alignment_writer::DeserializeBuffer(next_buffer_size, stream, &tmp);
+
+      bm::bvector<>::size_type first;
+      bm::bvector<>::size_type last;
+      tmp.find(first);
+      tmp.find_reverse(last);
+
+      size_t read_id = std::floor(first/n_refs);
+      for (size_t i = first; i <= last; ++i) {
+	size_t next_read_id = std::floor((i + 1)/n_refs);
+	if (next_read_id != read_id) {
+	  Merge(op, tmp, n_refs, read_id, ec_configs);
+	}
+	read_id = next_read_id;
+      }
+    } else {
+      std::string part;
+      std::stringstream partition(line);
+
+      std::getline(partition, part, ' ');
+      size_t read_id = std::stoul(part);
+
+      bm::bvector<> tmp;
+      bm::bvector<>::bulk_insert_iterator it(tmp);
+      while (std::getline(partition, part, ' ')) {
+	it = read_id*n_refs + std::stoul(part);
+      }
+      it.flush();
+      Merge(op, tmp, n_refs, read_id, ec_configs);
+    }
+  }
 }
 
 void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs, Alignment *alignment) {
@@ -78,31 +140,15 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       // Read the first alignments in-place to the output variable.
       ReadAlignmentFile(streams[i], ec_configs, alignment);
     } else {
-      // Read subsequent alignments into a ThemistoAlignment object.
-      std::unique_ptr<ThemistoAlignment> pair_alignment;
       if (alignment->parse_from_buffered()) {
-	alignment_writer::ReadHeader(streams[i], &n_reads, &n_refs); // TODO check that the numbers are equal?
-	// Size is known since it is given in the file format
-	pair_alignment.reset(new ThemistoAlignment(n_refs, n_reads));
-	pair_alignment.get()->set_parse_from_buffered();
-	pair_alignment->set_n_reads(n_reads);
-      } else {
-	// Size is now known since the paired files should have the same numbers of reads.
-	pair_alignment.reset(new ThemistoAlignment(alignment->n_targets(), alignment->n_reads()));
-      }
-      ReadAlignmentFile(streams[i], pair_alignment.get()->get(), pair_alignment.get());
+       	alignment_writer::ReadHeader(streams[i], &n_reads, &n_refs); // TODO check that the numbers are equal?
+	if (alignment->n_reads() != n_reads || alignment->n_targets() != n_refs) {
+	  // Themisto's output from paired-end reads should contain the same amount of reads.
+	  throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
+	}
 
-      if (alignment->n_reads() != pair_alignment.get()->n_reads()) {
-	// Themisto's output from paired-end reads should contain the same amount of reads.
-	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
-      if (mode == m_intersection) {
-	// m_intersection: both reads in a pair should align to be considered a match.
-	(*ec_configs) &= *pair_alignment.get()->get();
-      } else {
-	// m_union or m_unpaired: count alignments regardless of pair's status.
-	(*ec_configs) |= *pair_alignment.get()->get();
-      }
+      MergePairedAlignment((mode == m_intersection ? bm::set_AND : bm::set_OR), alignment->n_targets(), alignment->parse_from_buffered(), streams[i], ec_configs);
     }
   }
 }
