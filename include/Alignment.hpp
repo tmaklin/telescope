@@ -51,33 +51,6 @@ public:
 
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
-  // Parse plaintext alignments (themisto format)
-  void parse(const std::string &line, bm::bvector<>::bulk_insert_iterator *it) {
-    // telescope::ParseLine
-    //
-    // Parses a line in the pseudoalignment file.
-    //
-    std::string part;
-    std::stringstream partition(line);
-    // Skip read id (first column)
-    std::getline(partition, part, ' ');
-    while (std::getline(partition, part, ' ')) {
-      *it = this->n_processed*this->n_refs + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
-    }
-    ++this->n_processed; // assumes --sort-output was used when running `themisto pseudoalign`
-  }
-
-  // Parse alignments compressed with alignment_writer::BufferedPack.
-  // See https://github.com/tmaklin/alignmen-writer for details.
-  void parse(const std::string &buffer_size_line, std::istream *in, bm::bvector<> *out) const {
-    // telescope::ParseLine
-    //
-    // Parses a line in the pseudoalignment file.
-    //
-    size_t next_buffer_size = std::stoul(buffer_size_line);
-    alignment_writer::DeserializeBuffer(next_buffer_size, in, out);
-  }
-
   void clear_counts() {
     this->ec_counts.clear();
     this->ec_counts.shrink_to_fit();
@@ -92,6 +65,8 @@ public:
     if (this->parsing_from_buffered)
       this->n_processed = _n_reads;
   }
+
+  void add_read(const size_t read_id) { ++this->n_processed; }
 
   void fill_read_ids() {
     this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
