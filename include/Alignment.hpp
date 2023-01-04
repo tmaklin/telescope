@@ -182,7 +182,6 @@ private:
   uint16_t n_groups;
   std::vector<uint32_t> group_indicators;
 
-  std::vector<uint32_t> read_ids;
   std::vector<std::vector<uint32_t>> aligned_reads;
 
 public:
