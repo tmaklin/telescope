@@ -73,7 +73,7 @@ size_t ReadPlaintextAlignment(const size_t n_targets, std::istream *stream, bm::
   return n_reads;
 }
 
-void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs, Alignment *alignment) {
+size_t ReadPairedAlignments(const Mode &mode, const bool parse_from_buffered, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs) {
   // telescope::ReadPairedAlignments
   //
   // Reads in one or more pseudoalignment files from themisto for paired reads.
@@ -85,28 +85,26 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
   //
   uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
   size_t n_reads;
-  size_t n_refs = alignment->n_targets();
 
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
-      if (alignment->parse_from_buffered()) {
+      if (parse_from_buffered) {
 	n_reads = ReadCompactAlignment(streams[i], ec_configs);
       } else {
-	n_reads = ReadPlaintextAlignment(alignment->n_targets(), streams[i], ec_configs);
+	n_reads = ReadPlaintextAlignment(n_targets, streams[i], ec_configs);
       }
-      alignment->set_n_reads(n_reads);
     } else {
       // Read subsequent alignments into a ThemistoAlignment object.
-      bm::bvector<> new_configs(n_reads*n_refs);
+      bm::bvector<> new_configs(n_reads*n_targets);
       size_t n_processed;
-      if (alignment->parse_from_buffered()) {
+      if (parse_from_buffered) {
 	n_processed = ReadCompactAlignment(streams[i], &new_configs);
       } else {
-	n_processed = ReadPlaintextAlignment(alignment->n_targets(), streams[i], &new_configs);
+	n_processed = ReadPlaintextAlignment(n_targets, streams[i], &new_configs);
       }
 
-      if (n_processed != alignment->n_reads()) {
+      if (n_processed != n_reads) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
@@ -119,6 +117,7 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
       }
     }
   }
+  return n_reads;
 }
 
 void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
@@ -172,7 +171,8 @@ ThemistoAlignment Themisto(const Mode &mode, const bool parse_from_buffered, con
   //ec_configs.set_new_blocks_strat(bm::BM_GAP);
   ThemistoAlignment aln(n_refs, &ec_configs);
   aln.set_parse_from_buffered(parse_from_buffered);
-  ReadPairedAlignments(mode, streams, &ec_configs, &aln);
+  size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
+  aln.set_n_reads(n_reads);
   CompressAlignment(ec_configs, &aln);
   return aln;
 }
@@ -182,7 +182,7 @@ ThemistoAlignment ThemistoPlain(const Mode &mode, const bool parse_from_buffered
   bm::bvector<> ec_configs;
   ThemistoAlignment aln(n_refs, &ec_configs);
   aln.set_parse_from_buffered(parse_from_buffered);
-  ReadPairedAlignments(mode, streams, &ec_configs, &aln);
+  size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
   return aln;
 }
 
@@ -193,7 +193,8 @@ GroupedAlignment ThemistoGrouped(const Mode &mode, const bool parse_from_buffere
   bm::bvector<> ec_configs;
   bm::sparse_vector<uint16_t, bm::bvector<>> sparse_counts;
   aln.sparse_group_counts = &sparse_counts;
-  ReadPairedAlignments(mode, streams, &ec_configs, &aln);
+  size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
+  aln.set_n_reads(n_reads);
   CompressAlignment(ec_configs, &aln);
 
   aln.build_group_counts();
@@ -205,7 +206,8 @@ ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const bool parse_from_b
   bm::bvector<> ec_configs;
   ThemistoAlignment taln(n_refs, &ec_configs);
   taln.set_parse_from_buffered(parse_from_buffered);
-  ReadPairedAlignments(mode, streams, &ec_configs, &taln);
+  size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
+  taln.set_n_reads(n_reads);
   CompressAlignment(ec_configs, &taln);
   return taln;
 }
@@ -216,7 +218,8 @@ KallistoAlignment ThemistoToKallisto(const Mode &mode, const bool parse_from_buf
   bm::bvector<> ec_configs;
   KallistoAlignment aln(n_refs, &ec_configs);
   aln.set_parse_from_buffered(parse_from_buffered);
-  ReadPairedAlignments(mode, streams, &ec_configs, &aln);
+  size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
+  aln.set_n_reads(n_reads);
   CompressAlignment(ec_configs, &aln);
 
   aln.ec_ids = std::vector<uint32_t>(aln.compressed_size(), 0);
