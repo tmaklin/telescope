@@ -61,6 +61,50 @@ public:
 
   void add_read(const size_t _read_id) { ++this->n_processed; }
 
+  void collapse(bm::bvector<> &ec_configs) {
+    // telescope::CompressAlignment
+    //
+    // Compresses the full pseudoalignment data into equivalence
+    // classes, meaning unique pseudoalignment patterns and the numbers
+    // of times they were observed.
+    //
+    // Input:
+    //   `full_alignment`: pointer to the alignment object (after running ReadPairedAlignment or ReadAlignmentFile).
+    //
+    bm::bvector<> compressed_ec_configs;
+    compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
+    bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
+
+    // Need to hash the alignment patterns to count the times they appear.
+    std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
+
+    size_t ec_id = 0;
+    for (size_t i = 0; i < this->n_reads(); ++i) {
+      // Check if the current read aligned against any reference and
+      // discard the read if it didn't.
+      if (ec_configs.any_range(i*this->n_refs, i*this->n_refs + this->n_refs - 1)) {
+	// Copy the current alignment into a std::vector<bool> for hashing.
+	//
+	// TODO: implement the std::vector<bool> hash function
+	// for bm::bvector<> and use bm::copy_range?
+	//
+	std::vector<bool> current_ec(this->n_refs, false);
+	for (size_t j = 0; j < this->n_refs; ++j) {
+	  current_ec[j] = ec_configs[i*this->n_refs + j];
+	}
+
+	// Insert the current equivalence class to the hash map or
+	// increment its observation count by 1 if it already exists.
+	this->insert(current_ec, i, &ec_id, &ec_to_pos, &bv_it);
+      }
+    }
+    bv_it.flush(); // Insert everything
+
+    ec_configs.swap(compressed_ec_configs);
+    ec_configs.optimize();
+    ec_configs.freeze();
+  }
+
 };
 
 class ThemistoAlignment : public Alignment{
@@ -107,6 +151,8 @@ public:
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
     this->aligned_reads[it->second].emplace_back(i);
   }
+
+  void collapse() { Alignment::collapse(*this->ec_configs); }
 };
 
 struct GroupedAlignment : public Alignment {

@@ -120,50 +120,6 @@ size_t ReadPairedAlignments(const Mode &mode, const bool parse_from_buffered, co
   return n_reads;
 }
 
-void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
-  // telescope::CompressAlignment
-  //
-  // Compresses the full pseudoalignment data into equivalence
-  // classes, meaning unique pseudoalignment patterns and the numbers
-  // of times they were observed.
-  //
-  // Input:
-  //   `full_alignment`: pointer to the alignment object (after running ReadPairedAlignment or ReadAlignmentFile).
-  //
-  bm::bvector<> compressed_ec_configs;
-  compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
-  bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
-
-  // Need to hash the alignment patterns to count the times they appear.
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
-
-  size_t ec_id = 0;
-  for (size_t i = 0; i < full_alignment->n_reads(); ++i) {
-    // Check if the current read aligned against any reference and
-    // discard the read if it didn't.
-    if (ec_configs.any_range(i*full_alignment->n_targets(), i*full_alignment->n_targets() + full_alignment->n_targets() - 1)) {
-      // Copy the current alignment into a std::vector<bool> for hashing.
-      //
-      // TODO: implement the std::vector<bool> hash function
-      // for bm::bvector<> and use bm::copy_range?
-      //
-      std::vector<bool> current_ec(full_alignment->n_targets(), false);
-      for (size_t j = 0; j < full_alignment->n_targets(); ++j) {
-	current_ec[j] = ec_configs[i*full_alignment->n_targets() + j];
-      }
-
-      // Insert the current equivalence class to the hash map or
-      // increment its observation count by 1 if it already exists.
-      full_alignment->insert(current_ec, i, &ec_id, &ec_to_pos, &bv_it);
-    }
-  }
-  bv_it.flush(); // Insert everything
-
-  ec_configs.swap(compressed_ec_configs);
-  ec_configs.optimize();
-  ec_configs.freeze();
-}
-
 namespace read {
 ThemistoAlignment Themisto(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in only the ec_configs
@@ -173,7 +129,7 @@ ThemistoAlignment Themisto(const Mode &mode, const bool parse_from_buffered, con
   aln.set_parse_from_buffered(parse_from_buffered);
   size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
   aln.set_n_reads(n_reads);
-  CompressAlignment(ec_configs, &aln);
+  aln.collapse();
   return aln;
 }
 
@@ -195,7 +151,7 @@ GroupedAlignment ThemistoGrouped(const Mode &mode, const bool parse_from_buffere
   aln.sparse_group_counts = &sparse_counts;
   size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
   aln.set_n_reads(n_reads);
-  CompressAlignment(ec_configs, &aln);
+  aln.collapse(ec_configs);
 
   aln.build_group_counts();
   return aln;
@@ -208,7 +164,7 @@ ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const bool parse_from_b
   taln.set_parse_from_buffered(parse_from_buffered);
   size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
   taln.set_n_reads(n_reads);
-  CompressAlignment(ec_configs, &taln);
+  taln.collapse();
   return taln;
 }
 
@@ -220,7 +176,7 @@ KallistoAlignment ThemistoToKallisto(const Mode &mode, const bool parse_from_buf
   aln.set_parse_from_buffered(parse_from_buffered);
   size_t n_reads = ReadPairedAlignments(mode, parse_from_buffered, n_refs, streams, &ec_configs);
   aln.set_n_reads(n_reads);
-  CompressAlignment(ec_configs, &aln);
+  aln.collapse();
 
   aln.ec_ids = std::vector<uint32_t>(aln.compressed_size(), 0);
   for (uint32_t i = 0; i < aln.compressed_size(); ++i) {
