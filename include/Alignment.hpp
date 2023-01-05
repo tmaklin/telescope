@@ -57,10 +57,7 @@ public:
   void set_parse_from_buffered(const bool _parse_from_buffered) { this->parsing_from_buffered = _parse_from_buffered; }
   bool parse_from_buffered() const { return this->parsing_from_buffered; }
 
-  void set_n_reads(const size_t _n_reads) {
-    if (this->parsing_from_buffered)
-      this->n_processed = _n_reads;
-  }
+  void set_n_reads(const size_t _n_reads) { this->n_processed = _n_reads; }
 
   void add_read(const size_t _read_id) { ++this->n_processed; }
 
