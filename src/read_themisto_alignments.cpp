@@ -153,7 +153,6 @@ GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const si
   size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
   GroupedAlignment aln(n_refs, n_groups, n_reads, group_indicators);
   aln.collapse(ec_configs);
-  aln.build_group_counts();
 
   return aln;
 }

@@ -150,7 +150,10 @@ public:
 
 struct GroupedAlignment : public Alignment {
 private:
+  // Total number of reference groups
   uint16_t n_groups;
+
+  // Vector reference sequence at <position> to the group at <value>
   std::vector<uint32_t> group_indicators;
 
   // For some bizarre reason not using a pointer causes a
@@ -159,12 +162,8 @@ private:
   std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
 
 public:
-  std::vector<uint16_t> ec_group_counts;
 
-  GroupedAlignment() {
-    this->n_processed = 0;
-    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
-  }
+  GroupedAlignment() = default;
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
     this->n_refs = _n_refs;
@@ -181,29 +180,14 @@ public:
     this->n_processed = _n_reads;
     this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
   }
-  std::vector<size_t> ec_ids;
 
-  void build_group_counts() {
-    this->ec_group_counts.resize(this->ec_ids.size()*this->n_groups);
-    for (size_t j = 0; j < this->n_groups; ++j) {
-      for (size_t i = 0; i < this->ec_ids.size(); ++i) {
-	this->ec_group_counts[j*this->ec_ids.size() + i] = (*this->sparse_group_counts)[this->ec_ids[i]*this->n_groups + j];
-      }
-    }
-  }
-
+  // Insert a pseudoalignment into the equivalence class format
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator*) override {
-
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       this->ec_counts.emplace_back(0);
-      this->ec_ids.emplace_back(*ec_id);
       it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
-
-      for (size_t i = 0; i < this->n_groups; ++i) {
-	this->ec_group_counts.emplace_back(0);
-      }
 
       size_t read_start = (*ec_id)*this->n_groups;
       for (uint32_t j = 0; j  < this->n_refs; ++j) {
@@ -218,9 +202,12 @@ public:
     this->aligned_reads[it->second].emplace_back(i);
   }
 
-  uint16_t get_group_count(const size_t row, const size_t col) {
-    return this->ec_group_counts[row*this->ec_ids.size() + col];
+  // Get the number of sequences in group_id that the ec_id aligned against.
+  uint16_t get_group_count(const size_t group_id, const size_t ec_id) const {
+    size_t pos = ec_id*this->n_groups + group_id;
+    return (*this->sparse_group_counts)[pos];
   }
+
 };
 }
 
