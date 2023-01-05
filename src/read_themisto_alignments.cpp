@@ -44,9 +44,20 @@ void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignmen
   std::string line;
   while (std::getline(*stream, line)) {
     if (alignment->parse_from_buffered()) {
-      alignment->parse(line, stream, ec_configs);
+      size_t next_buffer_size = std::stoul(line);
+      alignment_writer::DeserializeBuffer(next_buffer_size, stream, ec_configs);
     } else {
-      alignment->parse(line, &it);
+      std::string part;
+      std::stringstream partition(line);
+
+      // First column is read id
+      std::getline(partition, part, ' ');
+      size_t read_id = std::stoul(part);
+
+      while (std::getline(partition, part, ' ')) {
+	*it = read_id*alignment->n_targets() + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+      }
+      alignment->add_read(read_id);
     }
   }
 
