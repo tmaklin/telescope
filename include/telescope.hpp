@@ -30,11 +30,11 @@
 namespace telescope {
 namespace read {
 // Themisto input
-ThemistoAlignment Themisto(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams);
-ThemistoAlignment ThemistoPlain(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams);
-GroupedAlignment ThemistoGrouped(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
-ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams);
-KallistoAlignment ThemistoToKallisto(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams);
+ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
+ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
 
 // Kallisto input
 // Read pseudoalignments and counts and ec_ids

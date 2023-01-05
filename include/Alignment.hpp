@@ -37,7 +37,6 @@ protected:
   uint32_t n_processed;
   size_t n_refs;
   std::vector<uint32_t> ec_counts;
-  bool parsing_from_buffered = false; // TODO use a function pointer to the correct parse function?
 
   std::vector<uint32_t> read_ids;
   std::vector<std::vector<uint32_t>> aligned_reads;
@@ -53,9 +52,6 @@ public:
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
   void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
-
-  void set_parse_from_buffered(const bool _parse_from_buffered) { this->parsing_from_buffered = _parse_from_buffered; }
-  bool parse_from_buffered() const { return this->parsing_from_buffered; }
 
   void set_n_reads(const size_t _n_reads) { this->n_processed = _n_reads; }
 
