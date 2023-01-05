@@ -93,7 +93,7 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
 	alignment_writer::ReadHeader(streams[i], &n_reads, &n_refs); // TODO check that the numbers are equal?
 	// Size is known since it is given in the file format
 	pair_alignment.reset(new ThemistoAlignment(n_refs, n_reads));
-	pair_alignment.get()->set_parse_from_buffered();
+	pair_alignment.get()->set_parse_from_buffered(true);
 	pair_alignment->set_n_reads(n_reads);
       } else {
 	// Size is now known since the paired files should have the same numbers of reads.
@@ -161,24 +161,27 @@ void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment) {
 }
 
 namespace read {
-ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+ThemistoAlignment Themisto(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in only the ec_configs
   ThemistoAlignment aln(n_refs);
+  aln.set_parse_from_buffered(parse_from_buffered);
   ReadPairedAlignments(mode, streams, aln.get(), &aln);
   CompressAlignment(*aln.get(), &aln);
   return aln;
 }
 
-ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+ThemistoAlignment ThemistoPlain(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in the plain alignment without compacting to equivalence classes
   ThemistoAlignment aln(n_refs);
+  aln.set_parse_from_buffered(parse_from_buffered);
   ReadPairedAlignments(mode, streams, aln.get(), &aln);
   return aln;
 }
 
-GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
+GroupedAlignment ThemistoGrouped(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
   // Read in group counts
   GroupedAlignment aln(n_refs, n_groups, group_indicators);
+  aln.set_parse_from_buffered(parse_from_buffered);
   bm::bvector<> ec_configs;
   bm::sparse_vector<uint16_t, bm::bvector<>> sparse_counts;
   aln.sparse_group_counts = &sparse_counts;
@@ -189,18 +192,20 @@ GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const si
   return aln;
 }
 
-ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
   ThemistoAlignment taln(n_refs);
+  taln.set_parse_from_buffered(parse_from_buffered);
   ReadPairedAlignments(mode, streams, taln.get(), &taln);
   CompressAlignment(*taln.get(), &taln);
   return taln;
 }
 
-KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+KallistoAlignment ThemistoToKallisto(const Mode &mode, const bool parse_from_buffered, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in the ec_configs and fill the ec_ids vector
   // Read in only the ec_configs
   KallistoAlignment aln(n_refs);
+  aln.set_parse_from_buffered(parse_from_buffered);
   ReadPairedAlignments(mode, streams, aln.get(), &aln);
   CompressAlignment(*aln.get(), &aln);
 
