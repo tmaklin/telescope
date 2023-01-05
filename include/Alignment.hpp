@@ -34,35 +34,26 @@
 namespace telescope {
 class Alignment {
 protected:
+  // Number of reads in the alignment
   uint32_t n_processed;
+
+  // Number of alignment targets
   size_t n_refs;
+
+  // Number of times an alignment corresponding to each equivalence class was observed
   std::vector<uint32_t> ec_counts;
 
-  std::vector<uint32_t> read_ids;
+  // IDs of reads that are assigned to each equivalence class
   std::vector<std::vector<uint32_t>> aligned_reads;
 
 public:
-  size_t compressed_size() const { return ec_counts.size(); }
-  uint32_t size() const { return this->compressed_size(); } // Backwards compatibility.
-  uint32_t n_targets() const { return this->n_refs; }
-  size_t n_reads() const { return this->n_processed; }
-  size_t reads_in_ec(const size_t &ec_id) const { return this->ec_counts[ec_id]; }
-  const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
 
+  // Insert a pseudoalignment into the equivalence class format (varies by alignment type, implement in children)
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
-  void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
-
+  // Collapse the argument alignment into equivalence classes and their observation counts
+  // Assumes that the internal variables `n_refs` and `n_processed` are the same as in the argument
   void collapse(bm::bvector<> &ec_configs) {
-    // telescope::CompressAlignment
-    //
-    // Compresses the full pseudoalignment data into equivalence
-    // classes, meaning unique pseudoalignment patterns and the numbers
-    // of times they were observed.
-    //
-    // Input:
-    //   `full_alignment`: pointer to the alignment object (after running ReadPairedAlignment or ReadAlignmentFile).
-    //
     bm::bvector<> compressed_ec_configs;
     compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
     bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
@@ -97,17 +88,30 @@ public:
     ec_configs.freeze();
   }
 
+  // Get the total number of equivalence classes in the alignment
+  size_t n_ecs() const { return ec_counts.size(); }
+
+  // Get the dimensions of the alignment
+  uint32_t n_targets() const { return this->n_refs; }
+  size_t n_reads() const { return this->n_processed; }
+
+  // Get number times an equivalence class was observed
+  size_t reads_in_ec(const size_t &ec_id) const { return this->ec_counts[ec_id]; }
+
+  // Get the IDs of reads assigned to an equivalence class
+  const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
+
+
 };
 
 class ThemistoAlignment : public Alignment{
 protected:
+  // Store the pseudoalignment as a n_reads (rows) x n_refs (columns) matrix
   bm::bvector<> ec_configs;
 
 public:
-  // Todo Rule of 5
-  ThemistoAlignment() {
-    this->n_processed = 0;
-  }
+
+  ThemistoAlignment() = default;
 
   ThemistoAlignment(const size_t &_n_refs, bm::bvector<> &ec_configs) {
     this->n_refs = _n_refs;
@@ -122,8 +126,7 @@ public:
     this->ec_configs = std::move(ec_configs);
   }
 
-  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
-
+  // Insert a pseudoalignment into the equivalence class format
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -145,7 +148,12 @@ public:
     this->aligned_reads[it->second].emplace_back(i);
   }
 
+  // Check if ec_id `row` aligned against group `col`.
+  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
+
+  // Collapse the stored pseudoalignment into equivalence classes and their observation counts.
   void collapse() { Alignment::collapse(this->ec_configs); }
+
 };
 
 struct GroupedAlignment : public Alignment {
@@ -156,9 +164,12 @@ private:
   // Vector reference sequence at <position> to the group at <value>
   std::vector<uint32_t> group_indicators;
 
-  // For some bizarre reason not using a pointer causes a
-  // `munmap_chunk(): invalid pointer Aborted (core dumped) ` error
-  // when the object is deleted.
+  // Number of sequences in each group that reads belonging to an
+  // equivalence class aligned against.
+  //
+  // For some bizarre reason not
+  // using a pointer causes a `munmap_chunk(): invalid pointer Aborted
+  // (core dumped) ` error when the object is deleted.
   std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
 
 public:
