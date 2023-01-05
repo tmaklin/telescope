@@ -60,9 +60,6 @@ Convert two pseudoalignments from paired-end reads to a single `pseudos.aln` fil
 telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o pseudos --format themisto
 ```
 
-## Kallisto to Themisto
-not yet implemented...
-
 ## Accepted options
 telescope accepts the following flags
 ```
