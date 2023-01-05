@@ -53,10 +53,6 @@ public:
 
   void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
 
-  void set_n_reads(const size_t _n_reads) { this->n_processed = _n_reads; }
-
-  void add_read(const size_t _read_id) { ++this->n_processed; }
-
   void collapse(bm::bvector<> &ec_configs) {
     // telescope::CompressAlignment
     //
@@ -105,27 +101,28 @@ public:
 
 class ThemistoAlignment : public Alignment{
 protected:
-  std::unique_ptr<bm::bvector<>> ec_configs; // TODO implement copy constructor
+  bm::bvector<> ec_configs;
 
 public:
+  // Todo Rule of 5
   ThemistoAlignment() {
     this->n_processed = 0;
-    this->ec_configs->set_new_blocks_strat(bm::BM_GAP);
-    this->ec_configs.reset(new bm::bvector<>());
-  };
-  ThemistoAlignment(const size_t &_n_refs, bm::bvector<> *ec_configs) {
-    this->n_refs = _n_refs;
-    this->n_processed = 0;
-    this->ec_configs.reset(ec_configs);
-  }
-  ThemistoAlignment(const size_t &_n_refs, const size_t &n_to_process, bm::bvector<> *ec_configs) {
-    // Constructor with known final size for ec_configs
-    this->n_refs = _n_refs;
-    this->n_processed = 0;
-    this->ec_configs.reset(ec_configs);
   }
 
-  bool operator()(const size_t row, const size_t col) const { return (*this->ec_configs)[row*this->n_refs + col]; }
+  ThemistoAlignment(const size_t &_n_refs, bm::bvector<> &ec_configs) {
+    this->n_refs = _n_refs;
+    this->n_processed = 0;
+    this->ec_configs = std::move(ec_configs);
+  }
+
+  ThemistoAlignment(const size_t &_n_refs, const size_t &_n_reads, bm::bvector<> &ec_configs) {
+    // Constructor with known final size for ec_configs
+    this->n_refs = _n_refs;
+    this->n_processed = _n_reads;
+    this->ec_configs = std::move(ec_configs);
+  }
+
+  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
 
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
@@ -148,7 +145,7 @@ public:
     this->aligned_reads[it->second].emplace_back(i);
   }
 
-  void collapse() { Alignment::collapse(*this->ec_configs); }
+  void collapse() { Alignment::collapse(this->ec_configs); }
 };
 
 struct GroupedAlignment : public Alignment {
@@ -156,12 +153,17 @@ private:
   uint16_t n_groups;
   std::vector<uint32_t> group_indicators;
 
+  // For some bizarre reason not using a pointer causes a
+  // `munmap_chunk(): invalid pointer Aborted (core dumped) ` error
+  // when the object is deleted.
+  std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
+
 public:
-  bm::sparse_vector<uint16_t, bm::bvector<>> *sparse_group_counts;
   std::vector<uint16_t> ec_group_counts;
 
   GroupedAlignment() {
     this->n_processed = 0;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
   }
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
@@ -169,8 +171,16 @@ public:
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = 0;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
   }
 
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
+    this->n_refs = _n_refs;
+    this->n_groups = _n_groups;
+    this->group_indicators = _group_indicators;
+    this->n_processed = _n_reads;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
+  }
   std::vector<size_t> ec_ids;
 
   void build_group_counts() {

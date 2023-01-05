@@ -73,7 +73,7 @@ struct KallistoAlignment : public ThemistoAlignment{
   }
 
   size_t get_ec_id(const size_t &ec_pos) const { return this->ec_ids[ec_pos]; }
-  bm::bvector<>::bulk_insert_iterator get_iterator() { return bm::bvector<>::bulk_insert_iterator(*this->ec_configs); }
+  bm::bvector<>::bulk_insert_iterator get_iterator() { return bm::bvector<>::bulk_insert_iterator(this->ec_configs); }
 
 };
 }
