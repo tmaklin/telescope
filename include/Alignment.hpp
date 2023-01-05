@@ -19,17 +19,13 @@
 #ifndef TELESCOPE_ALIGNMENT_HPP
 #define TELESCOPE_ALIGNMENT_HPP
 
-#include <vector>
 #include <cstddef>
+#include <vector>
 #include <unordered_map>
-#include <sstream>
-#include <cmath>
 #include <memory>
 
 #include "bm64.h"
-#include "bmserial.h"
 #include "bmsparsevec.h"
-#include "unpack.hpp"
 
 namespace telescope {
 class Alignment {
