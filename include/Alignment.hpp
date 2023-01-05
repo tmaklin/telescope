@@ -148,6 +148,8 @@ public:
   // Collapse the stored pseudoalignment into equivalence classes and their observation counts.
   void collapse() { Alignment::collapse(this->ec_configs); }
 
+  // Get the ec_configs
+  const bm::bvector<> &get_configs() const { return this->ec_configs; }
 };
 
 struct GroupedAlignment : public Alignment {
