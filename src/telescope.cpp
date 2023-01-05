@@ -43,7 +43,6 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
   args.add_long_argument<bool>("merge", "Merge the themisto alignments rather than converting to kallisto format (default: false).", false);
   args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
-  args.add_long_argument<bool>("read-compact", "Read alignments that have been compressed with alignment-writer (default: false).", false);
   args.add_long_argument<bool>("write-compact", "Write themisto format alignments in alignment-writer compressed format (default: true).", true);
   args.add_long_argument<bool>("cin", "Read the last alignment file from cin (default: false).", false);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
@@ -87,14 +86,9 @@ int main(int argc, char* argv[]) {
   }
 
   uint32_t n_refs = args.value<uint32_t>("n-refs");
-  telescope::ThemistoAlignment alignments(n_refs);
-
-  if (args.value<bool>("read-compact")) {
-    alignments.set_parse_from_buffered();
-  }
 
   if (!args.value<bool>("merge")) {
-    telescope::read::ThemistoAlignedReads(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
+    const telescope::ThemistoAlignment &alignments = telescope::read::Themisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs);
 
     log << "Writing Kallisto format alignments\n";
     telescope::KallistoRunInfo run_info(alignments);
@@ -117,12 +111,12 @@ int main(int argc, char* argv[]) {
     cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
     telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
   } else {
-    telescope::read::ThemistoPlain(args.value<telescope::Mode>("mode"), infile_ptrs, &alignments);
+    const telescope::ThemistoAlignment &alignments = telescope::read::ThemistoPlain(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs);
 
     log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");
     if (args.value<bool>("write-compact")) {
-      alignment_writer::Pack(n_refs, alignments.n_reads(), *alignments.get(), &alignment_file.stream());
+      alignment_writer::Pack(n_refs, alignments.n_reads(), *const_cast<bm::bvector<>*>(&alignments.get_configs()), &alignment_file.stream());
     } else {
       throw std::runtime_error("Writing plaintext Themisto alignments is currently unsupported, use alignment-writer to decompress the files.");
     }
