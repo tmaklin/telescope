@@ -45,7 +45,6 @@ void ReadEquivalenceClasses(std::istream &stream, KallistoAlignment *aln) {
       ++current_ec_pos;
     }
   }
-  aln->add_trailing_zeros(current_ec_pos, aln->n_targets());
 }
 
 void ReadAlignmentCounts(std::istream &stream, KallistoAlignment *kaln) {

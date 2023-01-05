@@ -96,12 +96,6 @@ public:
   bm::bvector<>* get() { return &this->ec_configs; }
   const bm::bvector<>& get() const { return this->ec_configs; }
 
-  void add_trailing_zeros(const size_t &rows, const size_t &cols) {
-    if (this->ec_configs.size() != rows*cols) {
-      this->ec_configs.resize(rows*cols); // add trailing zeros
-    }
-  }
-
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);

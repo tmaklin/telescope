@@ -166,14 +166,11 @@ void Themisto(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAli
   ReadPairedAlignments(mode, streams, aln->get(), aln);
   aln->fill_read_ids();
   CompressAlignment(*aln->get(), aln);
-
-  aln->add_trailing_zeros(aln->compressed_size(), aln->n_targets());
 }
 
 void ThemistoPlain(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln) {
   // Read in the plain alignment without compacting to equivalence classes
   ReadPairedAlignments(mode, streams, aln->get(), aln);
-  aln->add_trailing_zeros(aln->n_reads(), aln->n_targets());
 }
 
 void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
@@ -193,8 +190,6 @@ void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams,
   ReadPairedAlignments(mode, streams, taln->get(), taln);
   taln->fill_read_ids();
   CompressAlignment(*taln->get(), taln);
-
-  taln->add_trailing_zeros(taln->compressed_size(), taln->n_targets());
 }
 
 void ThemistoToKallisto(const Mode &mode, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
