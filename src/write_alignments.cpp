@@ -24,7 +24,7 @@ namespace telescope {
 namespace write {
 void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {
   uint32_t ec_id = 0;
-  for (uint32_t i = 0; i < aln.size(); ++i) {
+  for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
     std::string aligneds("");
     for (uint32_t j = 0; j < aln.n_targets(); ++j) {
       if (aln(i, j)) {
@@ -42,7 +42,7 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
 }
 
 void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
-  for (uint32_t i = 0; i < aln.size(); ++i) {
+  for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
     for (uint32_t j = 0; j < aln.reads_assigned_to_ec(i).size(); ++j) {
       *out << aln.reads_assigned_to_ec(i)[j] << ' ';
       std::string aligned_to("");

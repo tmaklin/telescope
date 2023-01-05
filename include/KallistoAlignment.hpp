@@ -35,7 +35,7 @@ struct KallistoRunInfo {
     n_processed = aln.n_reads();
     n_pseudoaligned = 0;
     n_unique = 0;
-    for (uint32_t i = 0; i < aln.size(); ++i) {
+    for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
       n_unique += (aln.reads_in_ec(i) == 1);
       n_pseudoaligned += aln.reads_in_ec(i);
     }
@@ -62,7 +62,7 @@ struct KallistoAlignment : public ThemistoAlignment{
   KallistoRunInfo run_info;
 
   void fill_info() {
-    run_info = KallistoRunInfo(this->n_targets(), this->n_reads(), size());
+    run_info = KallistoRunInfo(this->n_targets(), this->n_reads(), this->n_ecs());
   }
 
   void insert(const size_t &ec_id, const size_t &ec_count) {
