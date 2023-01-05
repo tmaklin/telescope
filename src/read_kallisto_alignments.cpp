@@ -27,7 +27,7 @@
 namespace telescope {
 void ReadEquivalenceClasses(std::istream &stream, KallistoAlignment *aln) {
   std::string line;
-  bm::bvector<>::bulk_insert_iterator it(*aln->get());
+  bm::bvector<>::bulk_insert_iterator it = aln->get_iterator();
 
   uint32_t current_ec_pos = 0;
   while(getline(stream, line)) {

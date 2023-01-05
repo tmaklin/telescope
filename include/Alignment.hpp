@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <cmath>
+#include <memory>
 
 #include "bm64.h"
 #include "bmserial.h"
@@ -66,29 +67,28 @@ public:
 };
 
 class ThemistoAlignment : public Alignment{
-private:
-  bm::bvector<> ec_configs;
+protected:
+  std::unique_ptr<bm::bvector<>> ec_configs; // TODO implement copy constructor
 
 public:
   ThemistoAlignment() {
     this->n_processed = 0;
-    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+    this->ec_configs->set_new_blocks_strat(bm::BM_GAP);
+    this->ec_configs.reset(new bm::bvector<>());
   };
-  ThemistoAlignment(const size_t &_n_refs) {
+  ThemistoAlignment(const size_t &_n_refs, bm::bvector<> *ec_configs) {
     this->n_refs = _n_refs;
     this->n_processed = 0;
-    this->ec_configs.set_new_blocks_strat(bm::BM_GAP);
+    this->ec_configs.reset(ec_configs);
   }
-  ThemistoAlignment(const size_t &_n_refs, const size_t &n_to_process) {
+  ThemistoAlignment(const size_t &_n_refs, const size_t &n_to_process, bm::bvector<> *ec_configs) {
     // Constructor with known final size for ec_configs
     this->n_refs = _n_refs;
     this->n_processed = 0;
-    this->ec_configs = bm::bvector<>(_n_refs*n_to_process, bm::BM_GAP);
+    this->ec_configs.reset(ec_configs);
   }
 
-  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
-  bm::bvector<>* get() { return &this->ec_configs; }
-  const bm::bvector<>& get() const { return this->ec_configs; }
+  bool operator()(const size_t row, const size_t col) const { return (*this->ec_configs)[row*this->n_refs + col]; }
 
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
