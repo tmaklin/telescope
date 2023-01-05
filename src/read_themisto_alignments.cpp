@@ -164,7 +164,6 @@ namespace read {
 void Themisto(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *aln) {
   // Read in only the ec_configs
   ReadPairedAlignments(mode, streams, aln->get(), aln);
-  aln->fill_read_ids();
   CompressAlignment(*aln->get(), aln);
 }
 
@@ -179,7 +178,6 @@ void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, Grou
   bm::sparse_vector<uint16_t, bm::bvector<>> sparse_counts;
   aln->sparse_group_counts = &sparse_counts;
   ReadPairedAlignments(mode, streams, &ec_configs, aln);
-  aln->fill_read_ids();
   CompressAlignment(ec_configs, aln);
 
   aln->build_group_counts();
@@ -188,7 +186,6 @@ void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, Grou
 void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
   // Read in the ec_configs and which reads are assigned to which equivalence classes
   ReadPairedAlignments(mode, streams, taln->get(), taln);
-  taln->fill_read_ids();
   CompressAlignment(*taln->get(), taln);
 }
 

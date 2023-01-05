@@ -63,12 +63,6 @@ public:
 
   void add_read(const size_t _read_id) { ++this->n_processed; }
 
-  void fill_read_ids() {
-    this->read_ids = std::vector<uint32_t>(this->n_processed, 0);
-    for (size_t i = 0; i < this->n_processed; ++i) {
-      this->read_ids[i] = i;
-    }
-  }
 };
 
 class ThemistoAlignment : public Alignment{
@@ -114,7 +108,7 @@ public:
       ++(*ec_id);
     }
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
-    this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
+    this->aligned_reads[it->second].emplace_back(i);
   }
 };
 
@@ -172,7 +166,7 @@ public:
       ++(*ec_id);
     }
     this->ec_counts[it->second] += 1;
-    this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
+    this->aligned_reads[it->second].emplace_back(i);
   }
 
   uint16_t get_group_count(const size_t row, const size_t col) {
