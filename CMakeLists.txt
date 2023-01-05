@@ -38,8 +38,7 @@ endif()
 ## telescope library
 add_library(libtelescope
 ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_kallisto_alignments.cpp)
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp)
 
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 

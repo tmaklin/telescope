@@ -47,7 +47,6 @@ protected:
   std::vector<std::vector<uint32_t>> aligned_reads;
 
 public:
-
   // Insert a pseudoalignment into the equivalence class format (varies by alignment type, implement in children)
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
@@ -105,12 +104,11 @@ public:
 };
 
 class ThemistoAlignment : public Alignment{
-protected:
+private:
   // Store the pseudoalignment as a n_reads (rows) x n_refs (columns) matrix
   bm::bvector<> ec_configs;
 
 public:
-
   ThemistoAlignment() = default;
 
   ThemistoAlignment(const size_t &_n_refs, bm::bvector<> &ec_configs) {
@@ -173,7 +171,6 @@ private:
   std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
 
 public:
-
   GroupedAlignment() = default;
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {

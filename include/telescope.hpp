@@ -35,10 +35,6 @@ ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vect
 GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
 ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
 KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
-
-// Kallisto input
-// Read pseudoalignments and counts and ec_ids
-void Kallisto(std::istream &ec_file, std::istream &tsv_file, KallistoAlignment *aln);
 }
 
 namespace write {

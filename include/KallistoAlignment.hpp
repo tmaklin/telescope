@@ -58,22 +58,10 @@ struct KallistoRunInfo {
 
 struct KallistoAlignment : public ThemistoAlignment{
   using ThemistoAlignment::ThemistoAlignment;
+
   std::vector<uint32_t> ec_ids;
   KallistoRunInfo run_info;
-
-  void fill_info() {
-    run_info = KallistoRunInfo(this->n_targets(), this->n_reads(), this->n_ecs());
-  }
-
-  void insert(const size_t &ec_id, const size_t &ec_count) {
-    if (ec_count > 0) {
-      this->ec_ids.emplace_back(ec_id);
-      this->ec_counts.emplace_back(ec_count);
-    }
-  }
-
-  size_t get_ec_id(const size_t &ec_pos) const { return this->ec_ids[ec_pos]; }
-  bm::bvector<>::bulk_insert_iterator get_iterator() { return bm::bvector<>::bulk_insert_iterator(this->ec_configs); }
+  void fill_info() { this->run_info = KallistoRunInfo(this->n_targets(), this->n_reads(), this->n_ecs()); }
 
 };
 }
