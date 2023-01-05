@@ -174,8 +174,8 @@ KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std:
   KallistoAlignment aln(n_refs, n_reads, ec_configs);
   aln.collapse();
 
-  aln.ec_ids = std::vector<uint32_t>(aln.compressed_size(), 0);
-  for (uint32_t i = 0; i < aln.compressed_size(); ++i) {
+  aln.ec_ids = std::vector<uint32_t>(aln.n_ecs(), 0);
+  for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
     aln.ec_ids[i] = i;
   }
   return aln;
