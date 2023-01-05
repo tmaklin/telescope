@@ -51,11 +51,6 @@ public:
 
   virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
 
-  void clear_counts() {
-    this->ec_counts.clear();
-    this->ec_counts.shrink_to_fit();
-  }
-
   void add_counts(const size_t &count) { this->ec_counts.emplace_back(count); }
 
   void set_parse_from_buffered() { this->parsing_from_buffered = true; }
@@ -74,9 +69,6 @@ public:
       this->read_ids[i] = i;
     }
   }
-
-  std::vector<uint32_t>::iterator ec_counts_begin() { return this->ec_counts.begin(); }
-  std::vector<uint32_t>::iterator ec_counts_end() { return this->ec_counts.end(); }
 };
 
 class ThemistoAlignment : public Alignment{
@@ -115,10 +107,6 @@ public:
     this->ec_configs.freeze();
   }
 
-  void optimize() { this->ec_configs.optimize(); }
-
-  void clear_configs() { this->ec_configs.clear(true); } // free memory
-
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -139,17 +127,6 @@ public:
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
     this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
   }
-
-  void merge_pair(const Mode &mode, const ThemistoAlignment &pair) {
-    if (mode == m_intersection) {
-      // m_intersection: both reads in a pair should align to be considered a match.
-      this->ec_configs &= pair.get();
-    } else {
-      // m_union or m_unpaired: count alignments regardless of pair's status.
-      this->ec_configs |= pair.get();
-    }
-  }
-
 };
 
 struct GroupedAlignment : public Alignment {
@@ -209,27 +186,8 @@ public:
     this->aligned_reads[it->second].emplace_back(this->read_ids[i]);
   }
 
-  const std::vector<uint16_t>& get_group_counts() const { return this->ec_group_counts; }
   uint16_t get_group_count(const size_t row, const size_t col) {
     return this->ec_group_counts[row*this->ec_ids.size() + col];
-  }
-
-  void reset_group_indicators(const std::vector<uint32_t> &new_group_indicators) {
-    this->group_indicators.assign(new_group_indicators.begin(), new_group_indicators.end());
-  }
-
-  void resize(const size_t new_n_refs, const size_t new_n_groups) {
-    this->n_refs = new_n_refs;
-    this->n_groups = new_n_groups;
-  }
-
-  const std::vector<uint16_t>& get_ec_group_counts() const {
-    return this->ec_group_counts;
-  }
-
-  void free_counts() {
-    this->ec_group_counts.clear();
-    this->ec_group_counts.shrink_to_fit();
   }
 };
 }
