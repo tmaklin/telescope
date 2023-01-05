@@ -20,9 +20,6 @@
 
 #include <string>
 #include <sstream>
-#include <unordered_map>
-#include <functional>
-#include <memory>
 
 #include "bm64.h"
 #include "unpack.hpp"
@@ -155,15 +152,6 @@ GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const si
   aln.collapse(ec_configs);
 
   return aln;
-}
-
-ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
-  // Read in the ec_configs and which reads are assigned to which equivalence classes
-  bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
-  ThemistoAlignment taln(n_refs, n_reads, ec_configs);
-  taln.collapse();
-  return taln;
 }
 
 KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {

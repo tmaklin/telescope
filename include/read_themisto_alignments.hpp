@@ -19,16 +19,29 @@
 #ifndef TELESCOPE_READ_THEMISTO_ALIGNMENTS_HPP
 #define TELESCOPE_READ_THEMISTO_ALIGNMENTS_HPP
 
-#include <fstream>
+#include <cstddef>
 #include <vector>
+#include <fstream>
 
-#include "bm64.h"
-
-#include "Mode.hpp"
 #include "Alignment.hpp"
+#include "Mode.hpp"
+#include "KallistoAlignment.hpp"
 
 namespace telescope {
-void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment);
+namespace read {
+// Read equivalence classes
+ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+
+// Read the plain alignment (n_reads x n_targets)
+ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+
+// Group the targets by some `group_indicators` and read corresponding equivalence classes
+GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
+
+// Read Themisto format alignment and convert it to Kallisto format
+KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+
+}
 }
 
 #endif

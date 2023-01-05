@@ -19,22 +19,16 @@
 #ifndef TELESCOPE_TELESCOPE_HPP
 #define TELESCOPE_TELESCOPE_HPP
 
-#include <cstddef>
-#include <vector>
 #include <fstream>
+#include <cstddef>
 
-#include "Mode.hpp"
+#include "read_themisto_alignments.hpp"
 #include "Alignment.hpp"
 #include "KallistoAlignment.hpp"
 
 namespace telescope {
 namespace read {
-// Themisto input
-ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
-ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
-GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
-ThemistoAlignment ThemistoAlignedReads(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
-KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+  // Check `read_themisto_alignments.hpp`
 }
 
 namespace write {
