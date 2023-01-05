@@ -28,7 +28,6 @@
 #include "Alignment.hpp"
 
 namespace telescope {
-void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignment *alignment);
 void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs, Alignment *alignment);
 void CompressAlignment(bm::bvector<> &ec_configs, Alignment *full_alignment);
 }

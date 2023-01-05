@@ -30,7 +30,21 @@
 #include "telescope.hpp"
 
 namespace telescope {
-void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignment *alignment) {
+size_t ReadCompactAlignment(std::istream *stream, bm::bvector<> *ec_configs) {
+  size_t n_reads;
+  size_t n_refs;
+  alignment_writer::ReadHeader(stream, &n_reads, &n_refs);
+  ec_configs->resize(n_reads*n_refs);
+
+  std::string line;
+  while (std::getline(*stream, line)) {
+    size_t next_buffer_size = std::stoul(line);
+    alignment_writer::DeserializeBuffer(next_buffer_size, stream, ec_configs);
+  }
+  return n_reads;
+}
+
+size_t ReadPlaintextAlignment(const size_t n_targets, std::istream *stream, bm::bvector<> *ec_configs) {
   // telescope::ReadAlignmentFile
   //
   // Reads in a istream pointing to a single themisto pseudoalignment
@@ -42,24 +56,21 @@ void ReadAlignmentFile(std::istream *stream, bm::bvector<> *ec_configs, Alignmen
   //
   bm::bvector<>::bulk_insert_iterator it(*ec_configs);
   std::string line;
+  size_t n_reads = 0;
   while (std::getline(*stream, line)) {
-    if (alignment->parse_from_buffered()) {
-      size_t next_buffer_size = std::stoul(line);
-      alignment_writer::DeserializeBuffer(next_buffer_size, stream, ec_configs);
-    } else {
-      std::string part;
-      std::stringstream partition(line);
+    std::string part;
+    std::stringstream partition(line);
 
-      // First column is read id
-      std::getline(partition, part, ' ');
-      size_t read_id = std::stoul(part);
+    // First column is read id
+    std::getline(partition, part, ' ');
+    size_t read_id = std::stoul(part);
 
-      while (std::getline(partition, part, ' ')) {
-	*it = read_id*alignment->n_targets() + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
-      }
-      alignment->add_read(read_id);
+    while (std::getline(partition, part, ' ')) {
+      *it = read_id*n_targets + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
     }
+    ++n_reads;
   }
+  return n_reads;
 }
 
 void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs, Alignment *alignment) {
@@ -73,42 +84,38 @@ void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams,
   //   `alignment`: pointer to an object that will contain the results.
   //
   uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
-
   size_t n_reads;
-  size_t n_refs;
-  if (alignment->parse_from_buffered()) {
-    alignment_writer::ReadHeader(streams[0], &n_reads, &n_refs);
-    ec_configs->resize(n_refs*n_reads);
-    alignment->set_n_reads(n_reads);
-  }
+  size_t n_refs = alignment->n_targets();
 
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
-      ReadAlignmentFile(streams[i], ec_configs, alignment);
+      if (alignment->parse_from_buffered()) {
+	n_reads = ReadCompactAlignment(streams[i], ec_configs);
+      } else {
+	n_reads = ReadPlaintextAlignment(alignment->n_targets(), streams[i], ec_configs);
+      }
+      alignment->set_n_reads(n_reads);
     } else {
       // Read subsequent alignments into a ThemistoAlignment object.
-      n_reads = alignment->n_reads();
-      n_refs = alignment->n_targets();
-      bm::bvector<> *new_configs = new bm::bvector<>(n_reads*n_refs); // TODO get rid of the pointr
-      ThemistoAlignment pair_alignment(n_refs, n_reads, new_configs);
+      bm::bvector<> new_configs(n_reads*n_refs);
+      size_t n_processed;
       if (alignment->parse_from_buffered()) {
-	alignment_writer::ReadHeader(streams[i], &n_reads, &n_refs); // TODO check that the numbers are equal?
-	pair_alignment.set_parse_from_buffered(true);
-	pair_alignment.set_n_reads(n_reads);
+	n_processed = ReadCompactAlignment(streams[i], &new_configs);
+      } else {
+	n_processed = ReadPlaintextAlignment(alignment->n_targets(), streams[i], &new_configs);
       }
-      ReadAlignmentFile(streams[i], new_configs, &pair_alignment);
 
-      if (alignment->n_reads() != pair_alignment.n_reads()) {
+      if (n_processed != alignment->n_reads()) {
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
       if (mode == m_intersection) {
 	// m_intersection: both reads in a pair should align to be considered a match.
-	(*ec_configs) &= *new_configs;
+	(*ec_configs) &= new_configs;
       } else {
 	// m_union or m_unpaired: count alignments regardless of pair's status.
-	(*ec_configs) |= *new_configs;
+	(*ec_configs) |= new_configs;
       }
     }
   }
