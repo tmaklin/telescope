@@ -30,8 +30,8 @@
 #include "pack.hpp"
 #include "bmconst.h"
 
-#include "version.h"
-#include "log.hpp"
+#include "telescope_version.h"
+#include "telescope_log.hpp"
 
 namespace telescope {
 bool CmdOptionPresent(char **begin, char **end, const std::string &option) {

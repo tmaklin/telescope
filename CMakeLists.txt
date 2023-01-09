@@ -214,5 +214,5 @@ if(CMAKE_BUILD_TESTS)
   # target_link_libraries(runUnitTets libtelescope)
 endif()
 
-## Generate a version.h file containing build version and timestamp
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/version.h @ONLY)
+## Generate a telescope_version.h file containing build version and timestamp
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_version.h @ONLY)
