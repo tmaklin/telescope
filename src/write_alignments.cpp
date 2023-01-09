@@ -23,6 +23,15 @@
 namespace telescope {
 namespace write {
 void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std::ostream* tsv_file) {
+  // telescope::write::ThemistoToKallisto
+  //
+  // Writes the alignment contained in `aln` into files matching the Kallisto format.
+  //
+  // Input:
+  //   `aln`: The pseudoalignment to write.
+  //   `ec_file`: Pointer to the file that will store the equivalence class configurations.
+  //   `tsv_file`: Pointer to the file that will contain the observation counts of each equivalence class.
+  //
   uint32_t ec_id = 0;
   for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
     std::string aligneds("");
@@ -42,6 +51,14 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
 }
 
 void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
+  // telescope::write::ThemistoReadAssignments
+  //
+  // Writes the alignment of each read against the reference sequences.
+  //
+  // Input:
+  //   `aln`: The pseudoalignment to write.
+  //   `out`: Pointer to the output file stream.
+  //
   for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
     for (uint32_t j = 0; j < aln.reads_assigned_to_ec(i).size(); ++j) {
       *out << aln.reads_assigned_to_ec(i)[j] << ' ';
@@ -60,6 +77,15 @@ void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out) {
 }
 
 void KallistoInfoFile(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out) {
+  // telescope::write::KallistoInfoFile
+  //
+  // Writes the Kallisto run_info.json file from the `run_info` object.
+  //
+  // Input:
+  //   `run_info`: The KallistoRunInfo object to write.
+  //   `indent_len`: Indent length in the written json file.
+  //   `out`: Pointer to a file stream to write into.
+  //
   std::string indent;
   for (uint8_t i = 0; i < indent_len; ++i) {
     indent += " ";
