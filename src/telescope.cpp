@@ -28,6 +28,7 @@
 #include "cxxargs.hpp"
 #include "cxxio.hpp"
 #include "pack.hpp"
+#include "bmconst.h"
 
 #include "version.h"
 #include "log.hpp"
@@ -42,7 +43,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_short_argument<std::string>('o', "Output file directory.");
   args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
   args.add_long_argument<bool>("merge", "Merge the themisto alignments rather than converting to kallisto format (default: false).", false);
-  args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of union, intersection; default: union)", telescope::m_union);
+  args.add_long_argument<bm::set_operation>("mode", "How to merge paired-end alignments (one of union, intersection; default: intersection)", bm::set_AND);
   args.add_long_argument<bool>("write-compact", "Write themisto format alignments in alignment-writer compressed format (default: true).", true);
   args.add_long_argument<bool>("cin", "Read the last alignment file from cin (default: false).", false);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);
@@ -88,7 +89,7 @@ int main(int argc, char* argv[]) {
   uint32_t n_refs = args.value<uint32_t>("n-refs");
 
   if (!args.value<bool>("merge")) {
-    const telescope::ThemistoAlignment &alignments = telescope::read::Themisto(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs);
+    const telescope::ThemistoAlignment &alignments = telescope::read::Themisto(args.value<bm::set_operation>("mode"), n_refs, infile_ptrs);
 
     log << "Writing Kallisto format alignments\n";
     telescope::KallistoRunInfo run_info(alignments);
@@ -111,7 +112,7 @@ int main(int argc, char* argv[]) {
     cxxio::Out run_info_file(args.value<std::string>('o') + "/run_info.json");
     telescope::write::KallistoInfoFile(run_info, 4, &run_info_file.stream());
   } else {
-    const telescope::ThemistoAlignment &alignments = telescope::read::ThemistoPlain(args.value<telescope::Mode>("mode"), n_refs, infile_ptrs);
+    const telescope::ThemistoAlignment &alignments = telescope::read::ThemistoPlain(args.value<bm::set_operation>("mode"), n_refs, infile_ptrs);
 
     log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");

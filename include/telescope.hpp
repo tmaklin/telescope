@@ -19,14 +19,25 @@
 #ifndef TELESCOPE_TELESCOPE_HPP
 #define TELESCOPE_TELESCOPE_HPP
 
+#include <string>
+#include <exception>
 #include <fstream>
 #include <cstddef>
+
+#include "bmconst.h"
 
 #include "read_themisto_alignments.hpp"
 #include "Alignment.hpp"
 #include "KallistoAlignment.hpp"
 
 namespace telescope {
+inline bm::set_operation get_mode(const std::string &mode_str) {
+  // Get the paired reads merge mode based on command line argument
+  if (mode_str == "union") return bm::set_OR;
+  if (mode_str == "intersection") return bm::set_AND;
+  throw std::runtime_error("Unrecognized paired-end mode.");
+}
+
 namespace read {
   // Check `read_themisto_alignments.hpp`
 }
@@ -36,6 +47,15 @@ void ThemistoToKallisto(const ThemistoAlignment &aln, std::ostream* ec_file, std
 void ThemistoReadAssignments(const ThemistoAlignment &aln, std::ostream* out);
 void KallistoInfoFile(const KallistoRunInfo &run_info, const uint8_t indent_len, std::ostream *out);
 }
+}
+
+namespace cxxargs {
+  inline std::istream& operator>> (std::istream &in, bm::set_operation &t) {
+    std::string in_val;
+    in >> in_val;
+    t = telescope::get_mode(in_val);
+    return in;
+  }
 }
 
 #endif

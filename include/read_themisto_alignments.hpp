@@ -24,22 +24,21 @@
 #include <fstream>
 
 #include "Alignment.hpp"
-#include "Mode.hpp"
 #include "KallistoAlignment.hpp"
 
 namespace telescope {
 namespace read {
 // Read equivalence classes
-ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+ThemistoAlignment Themisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams);
 
 // Read the plain alignment (n_reads x n_targets)
-ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams);
 
 // Group the targets by some `group_indicators` and read corresponding equivalence classes
-GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
+GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
 
 // Read Themisto format alignment and convert it to Kallisto format
-KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams);
+KallistoAlignment ThemistoToKallisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams);
 
 }
 }

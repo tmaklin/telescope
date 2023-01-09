@@ -87,13 +87,13 @@ size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvect
   return n_reads;
 }
 
-size_t ReadPairedAlignments(const Mode &mode, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs) {
+size_t ReadPairedAlignments(const bm::set_operation &merge_op, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs) {
   // telescope::ReadPairedAlignments
   //
   // Reads in one or more pseudoalignment files from themisto for paired reads.
   //
   // Input:
-  //   `mode`: intersect, union, or unpair the paired alignments (one of m_intersection, m_union).
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
   //   `streams`: pointers to istreams opened on the pseudoalignment files.
   //   `alignment`: pointer to an object that will contain the results.
   //
@@ -114,10 +114,10 @@ size_t ReadPairedAlignments(const Mode &mode, const size_t n_targets, std::vecto
 	// Themisto's output from paired-end reads should contain the same amount of reads.
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
-      if (mode == m_intersection) {
+      if (merge_op == bm::set_AND) {
 	// m_intersection: both reads in a pair should align to be considered a match.
 	(*ec_configs) &= new_configs;
-      } else if (mode == m_union){
+      } else if (merge_op == bm::set_OR){
 	// m_union: count alignments regardless of pair's status.
 	(*ec_configs) |= new_configs;
       } else {
@@ -129,38 +129,38 @@ size_t ReadPairedAlignments(const Mode &mode, const size_t n_targets, std::vecto
 }
 
 namespace read {
-ThemistoAlignment Themisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+ThemistoAlignment Themisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in only the ec_configs
   bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
   ThemistoAlignment aln(n_refs, n_reads, ec_configs);
   aln.collapse();
   return aln;
 }
 
-ThemistoAlignment ThemistoPlain(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in the plain alignment without compacting to equivalence classes
   bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
   ThemistoAlignment aln(n_refs, n_reads, ec_configs);
   return aln;
 }
 
-GroupedAlignment ThemistoGrouped(const Mode &mode, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
+GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const size_t n_groups, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
   // Read in group counts
   bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
   GroupedAlignment aln(n_refs, n_groups, n_reads, group_indicators);
   aln.collapse(ec_configs);
 
   return aln;
 }
 
-KallistoAlignment ThemistoToKallisto(const Mode &mode, const size_t n_refs, std::vector<std::istream*> &streams) {
+KallistoAlignment ThemistoToKallisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
   // Read in the ec_configs and fill the ec_ids vector
   // Read in only the ec_configs
   bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(mode, n_refs, streams, &ec_configs);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
   KallistoAlignment aln(n_refs, n_reads, ec_configs);
   aln.collapse();
 
