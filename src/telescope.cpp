@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
     log << "Writing Themisto format alignment\n";
     cxxio::Out alignment_file(args.value<std::string>('o') + ".aln");
     if (args.value<bool>("write-compact")) {
-      alignment_writer::Pack(n_refs, alignments.n_reads(), *const_cast<bm::bvector<>*>(&alignments.get_configs()), &alignment_file.stream());
+      alignment_writer::Pack(alignments.get_configs(), n_refs, alignments.n_reads(), &alignment_file.stream());
     } else {
       throw std::runtime_error("Writing plaintext Themisto alignments is currently unsupported, use alignment-writer to decompress the files.");
     }
