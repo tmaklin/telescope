@@ -6,25 +6,39 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(ZLIB REQUIRED)
 
-## Determine build type and set flags accordingly
+## Determine build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release) ## Build Release by default
+elseif(CMAKE_BUILD_TYPE MATCHES Debug)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -Wall -Wextra -Wpedantic")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_DEBUG} -g -Wall -Wextra -Wpedantic")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -g -Wall -Wextra -Wpedantic")
 endif()
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic -g")
+
+if(CMAKE_BUILD_TYPE MATCHES Release)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -xHost -fp-model fast=2 -no-prec-div -fimf-use-svml=true -ipo -m64")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -xHost -fp-model fast=2 -no-prec-div -fimf-use-svml=true -ipo -m64")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O3 -xHost -fp-model fast=2 -no-prec-div -fimf-use-svml=true -ipo -m64")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -funroll-loops")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -ffast-math -funroll-loops")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ffast-math -funroll-loops")
+  endif()
+endif()
 
 ## Set C++11 support depending on cmake version
 if (${CMAKE_MAJOR_VERSION} GREATER 2 AND ${CMAKE_MINOR_VERSION} GREATER 0)
-  set (CMAKE_CXX_STANDARD 11)
+  set (CMAKE_CXX_STANDARD 17)
   set (CMAKE_CXX_STANDARD_REQUIRED ON)
 else()
-  add_compile_options(-std=c++11)
+  add_compile_options(-std=c++17)
 endif()
 
 ## telescope library
 add_library(libtelescope
 ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/read_kallisto_alignments.cpp)
+${CMAKE_CURRENT_SOURCE_DIR}/src/read_themisto_alignments.cpp)
 
 set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 
@@ -57,6 +71,11 @@ if (DEFINED CMAKE_BITMAGIC_HEADERS)
 else()
   set(CMAKE_BITMAGIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/BitMagic-7.12.3/src)
 endif()
+include_directories(${CMAKE_BITMAGIC_HEADERS})
+
+## Own header files
+set(CMAKE_TELESCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_TELESCOPE_HEADERS})
 
 ## bxzstr
 if (DEFINED CMAKE_BXZSTR_HEADERS)
@@ -77,6 +96,7 @@ else()
   endif()
   set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
 endif()
+include_directories(${CMAKE_BXZSTR_HEADERS})
 
 ## cxxargs
 if (DEFINED CMAKE_CXXARGS_HEADERS)
@@ -97,7 +117,7 @@ else()
   endif()
   set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
 endif()
-
+include_directories(${CMAKE_CXXARGS_HEADERS})
 
 ## cxxio
 if (DEFINED CMAKE_CXXIO_HEADERS)
@@ -120,7 +140,31 @@ else()
 endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
-include_directories(include ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_BXZSTR_HEADERS} ${CMAKE_CXXARGS_HEADERS} ${CMAKE_BITMAGIC_HEADERS})
+## alignment-writer
+if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS)
+  message(STATUS "alignment-writer headers provided in: ${CMAKE_ALIGNMENT_WRITER_HEADERS}")
+  target_link_libraries(telescope libalignmentwriter)
+else()
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-alignment-writer.txt.in ${CMAKE_BINARY_DIR}/external/alignment-writer-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/alignment-writer-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for alignment-writer failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/alignment-writer-download )
+  if(result)
+    message(FATAL_ERROR "Build step for alignment-writer failed: ${result}")
+  endif()
+  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer
+                   ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/build)
+  set_target_properties(alignment-writer PROPERTIES EXCLUDE_FROM_ALL 1)
+  target_link_libraries(telescope libalignmentwriter)
+  set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/include)
+endif()
+include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
 
 ## Get version number from git tags
 find_package(Git)
@@ -170,5 +214,5 @@ if(CMAKE_BUILD_TESTS)
   # target_link_libraries(runUnitTets libtelescope)
 endif()
 
-## Generate a version.h file containing build version and timestamp
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/version.h @ONLY)
+## Generate a telescope_version.h file containing build version and timestamp
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_version.h @ONLY)

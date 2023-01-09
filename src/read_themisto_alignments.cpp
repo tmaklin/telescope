@@ -15,145 +15,295 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
-
-#include "telescope.hpp"
+//
+#include "read_themisto_alignments.hpp"
 
 #include <string>
 #include <sstream>
-#include <unordered_map>
-#include <functional>
+#include <set>
 
 #include "bm64.h"
+#include "unpack.hpp"
+
+#include "telescope.hpp"
 
 namespace telescope {
-void ReadAlignmentFile(std::istream *stream, CompressedAlignment *alignment) {
-  // telescope::ReadAlignmentFile
+void ReadCompactAlignment(std::istream *stream, bm::bvector<> *ec_configs) {
+  // telescope::ReadCompactAlignment
   //
-  // Reads in a istream pointing to a single themisto pseudoalignment
-  // as a contiguous bit vector.
+  // Reads an alignment file that has been compacted with
+  // alignment-writer (https://github.com/tmaklin/alignment-writer)
+  // into `*ec_configs`.
   //
   // Input:
   //   `stream`: pointer to an istream opened on the pseudoalignment file.
-  //   `alignment`: pointer to the object that will contain the results.
+  //     NOTE:   Use alignment_writer::ReadHeader before calling this function!
+  //   `ec_configs`: pointer to the output variable that will contain the alignment.
   //
-  bm::bvector<>::bulk_insert_iterator it(*alignment->get());
   std::string line;
   while (std::getline(*stream, line)) {
-    alignment->parse(line, &it);
+    // Deserialize each chunk in the file by ORing into ec_configs
+    size_t next_buffer_size = std::stoul(line);
+    alignment_writer::DeserializeBuffer(next_buffer_size, stream, ec_configs);
   }
-
-  alignment->add_trailing_zeros(alignment->n_reads(), alignment->n_targets());
-  alignment->optimize();
 }
 
-void ReadPairedAlignments(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *alignment) {
-  // telescope::ReadPairedAlignments
+void ReadPlaintextLine(const size_t n_targets, std::string &line, bm::bvector<>::bulk_insert_iterator &it) {
+  // telescope::ReadPlaintextLine
   //
-  // Reads in one or more pseudoalignment files from themisto for paired reads.
+  // Reads a line in a plaintext alignment file from Themisto
+  // (https://github.com/algbio/themisto) into the bm::bvector<> `it`
+  // inserts to.
   //
   // Input:
-  //   `mode`: intersect, union, or unpair the paired alignments (one of m_intersection, m_union, m_unpaired).
-  //   `streams`: pointers to istreams opened on the pseudoalignment files.
-  //   `alignment`: pointer to an object that will contain the results.
+  //   `n_targets`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the Themisto
+  //                file format so has to be provided separately.
+  //   `line`: the line from the alignment file to read in.
+  //   `it`: insert iterator to the bm::bvector<> variable for storing the alignment.
+  //
+  std::string part;
+  std::stringstream partition(line);
+
+  // First column is read id (0-based indexing).
+  std::getline(partition, part, ' ');
+  size_t read_id = std::stoul(part);
+
+  // Next columns contain the target sequence id (0-based indexing).
+  while (std::getline(partition, part, ' ')) {
+    *it = read_id*n_targets + std::stoul(part); // set bit `n_reads*n_refs + std::stoul(part)` as true
+  }
+}
+
+size_t ReadPlaintextAlignment(const size_t n_targets, std::string &line, std::istream *stream, bm::bvector<> *ec_configs) {
+  // telescope::ReadPlaintextAlignment
+  //
+  // Reads a plaintext alignment file from Themisto
+  // (https://github.com/algbio/themisto) into `*ec_configs` and
+  // return the number of reads in the file (both unaligned and
+  // aligned).
+  //
+  // Input:
+  //   `n_targets`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the Themisto
+  //                file format so has to be provided separately.
+  //   `line`: read each line into this variable.
+  //     NOTE: the contents of the *first* line should already be stored in this variable.
+  //   `stream`: pointer to an istream opened on the pseudoalignment file.
+  //   `ec_configs`: pointer to the output variable that will contain the alignment.
+  // Output:
+  //   `n_reads`: total number of reads in the pseudoalignment (unaligned + aligned).
+  //
+  bm::bvector<>::bulk_insert_iterator it(*ec_configs); // Bulk insert iterator buffers the insertions
+
+  // Contents of the first line is already stored in `line`
+  ReadPlaintextLine(n_targets, line, it);
+  size_t n_reads = 1;
+
+  while (std::getline(*stream, line)) {
+    // Insert each line into the alignment
+    ReadPlaintextLine(n_targets, line, it);
+    ++n_reads;
+  }
+  return n_reads;
+}
+
+size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvector<> *ec_configs) {
+  // telescope::ReadAlignmentFile
+  //
+  // Wrapper for determining which file format (alignment-writer or
+  // plaintext) is used. Returns the number of aligned + unaligned reads in the
+  // pseudoalignment.
+  //
+  // Input:
+  //   `n_targets`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `stream`: pointer to an istream opened on the pseudoalignment file.
+  //   `ec_configs`: pointer to the output variable that will contain the alignment.
+  // Output:
+  //   `n_reads`: total number of reads in the pseudoalignment (unaligned + aligned).
+  //
+  std::string line;
+  std::getline(*stream, line); // Read the first line to check the format
+  size_t n_reads;
+  if (line.find(',') != std::string::npos) {
+    // First line contains a ','; stream could be in the compact format.
+    size_t n_refs;
+    alignment_writer::ReadHeader(line, &n_reads, &n_refs);
+    // Size is given on the header line.
+    ec_configs->resize(n_reads*n_refs);
+    ReadCompactAlignment(stream, ec_configs);
+  } else {
+    // Stream could be in the plaintext format.
+    // Size is unknown.
+    n_reads = ReadPlaintextAlignment(n_targets, line, stream, ec_configs);
+  }
+  return n_reads;
+}
+
+size_t ReadPairedAlignments(const bm::set_operation &merge_op, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs) {
+  // telescope::ReadPairedAlignments
+  //
+  // Reads one or more pseudoalignment files from Themisto for
+  // paired reads into `ec_configs`. Can be in plaintext or alignment-writer
+  // format. Returns the number of reads (unaligned + aligned) in the
+  // alignment.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_targets`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  //   `ec_configs`: pointer to the output variable that will contain the alignment.
+  // Output:
+  //   `n_reads`: total number of reads in the pseudoalignment (unaligned + aligned).
   //
   uint8_t n_streams = streams.size(); // Typically 1 (unpaired reads) or 2 (paired reads).
+  size_t n_reads;
 
   for (uint8_t i = 0; i < n_streams; ++i) {
     if (i == 0) {
       // Read the first alignments in-place to the output variable.
-      ReadAlignmentFile(streams[i], alignment);
+      n_reads = ReadAlignmentFile(n_targets, streams[i], ec_configs);
     } else {
-      // Read subsequent alignments into a new bitvector.
-      // Size is now known since the paired files should have the same numbers of reads.
-      CompressedAlignment pair_alignment(alignment->n_targets(), alignment->n_reads()); // Initialize with known final size
-      ReadAlignmentFile(streams[i], &pair_alignment);
+      // Initialize a temporary object for storing the alignments.
+      bm::bvector<> new_configs(n_reads*n_targets, bm::BM_GAP);
+      size_t n_processed;
+      n_processed = ReadAlignmentFile(n_targets, streams[i], &new_configs);
 
-      if (alignment->n_reads() != pair_alignment.n_reads()) {
-	// Themisto's output from paired-end reads should contain the same amount of reads.
+      // Themisto's output from paired-end reads should contain the same amount of reads.
+      if (n_processed != n_reads) {
 	throw std::runtime_error("Pseudoalignment files have different numbers of pseudoalignments.");
       }
-      alignment->merge_pair(mode, pair_alignment);
-    }
-  }
-  // Conserve memory and make alignments read-only.
-  alignment->make_read_only();
-}
 
-void CompressAlignment(CompressedAlignment *full_alignment) {
-  // telescope::CompressAlignment
-  //
-  // Compresses the full pseudoalignment data into equivalence
-  // classes, meaning unique pseudoalignment patterns and the numbers
-  // of times they were observed.
-  //
-  // Input:
-  //   `full_alignment`: pointer to the alignment object (after running ReadPairedAlignment or ReadAlignmentFile).
-  //
-  bm::bvector<> compressed_ec_configs;
-  compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
-  bm::bvector<>::bulk_insert_iterator bv_it(compressed_ec_configs);
-
-  // Need to hash the alignment patterns to count the times they appear.
-  std::unordered_map<std::vector<bool>, uint32_t> ec_to_pos;
-
-  size_t ec_id = 0;
-  for (size_t i = 0; i < full_alignment->n_reads(); ++i) {
-    // Check if the current read aligned against any reference and
-    // discard the read if it didn't.
-    if (full_alignment->get()->any_range(i*full_alignment->n_targets(), i*full_alignment->n_targets() + full_alignment->n_targets() - 1)) {
-      // Copy the current alignment into a std::vector<bool> for hashing.
-      //
-      // TODO: implement the std::vector<bool> hash function
-      // for bm::bvector<> and use bm::copy_range?
-      //
-      std::vector<bool> current_ec(full_alignment->n_targets(), false);
-      for (size_t j = 0; j < full_alignment->n_targets(); ++j) {
-	current_ec[j] = (*full_alignment->get())[i*full_alignment->n_targets() + j];
+      // Merge the temporary into the the output `ec_configs`.
+      if (merge_op == bm::set_AND) {
+	// m_intersection: both reads in a pair should align to be considered a match.
+	(*ec_configs) &= new_configs;
+      } else if (merge_op == bm::set_OR){
+	// m_union: count alignments regardless of pair's status.
+	(*ec_configs) |= new_configs;
+      } else {
+	throw std::runtime_error("Unknown paired alignment merge mode.");
       }
-
-      // Insert the current equivalence class to the hash map or
-      // increment its observation count by 1 if it already exists.
-      full_alignment->insert(current_ec, i, &ec_id, &ec_to_pos, &bv_it);
     }
   }
-  bv_it.flush(); // Insert everything
-  full_alignment->get()->swap(compressed_ec_configs);
+  return n_reads;
 }
 
 namespace read {
-void Themisto(const Mode &mode, std::vector<std::istream*> &streams, CompressedAlignment *aln) {
-  // Read in only the ec_configs
-  ReadPairedAlignments(mode, streams, aln);
-  CompressAlignment(aln);
-
-  aln->add_trailing_zeros(aln->compressed_size(), aln->n_targets());
-  aln->make_read_only();
+ThemistoAlignment Themisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
+  // telescope::read::Themisto
+  //
+  // Read in a Themisto pseudoalignment and collapse it into
+  // equivalence classes. Reads that align to exactly same reference
+  // sequences are assigned to the same equivalence class.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_refs`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::ThemistoAlignment object.
+  //
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+  ThemistoAlignment aln(n_refs, n_reads, ec_configs);
+  aln.collapse();
+  return aln;
 }
 
-void ThemistoGrouped(const Mode &mode, std::vector<std::istream*> &streams, GroupedAlignment *aln) {
-  // Read in group counts
-  ReadPairedAlignments(mode, streams, aln);
-  CompressAlignment(aln);
-  aln->clear_configs();
+ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
+  // telescope::read::ThemistoPlain
+  //
+  // Read in a Themisto pseudoalignment in the plain format
+  // i. e. without collapsing it into equivalence classes.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_refs`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::ThemistoAlignment object.
+  //
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+  ThemistoAlignment aln(n_refs, n_reads, ec_configs);
+  return aln;
 }
 
-void ThemistoAlignedReads(const Mode &mode, std::vector<std::istream*> &streams, ThemistoAlignment *taln) {
-  // Read in the ec_configs and which reads are assigned to which equivalence classes
-  ReadPairedAlignments(mode, streams, taln);
-  CompressAlignment(taln);
+GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
+  // telescope::read::ThemistoGrouped
+  //
+  // Read in a Themisto pseudoalignment and collapse it into
+  // equivalence classes. Reads that align to the same number of
+  // reference sequences in each reference group (defined by
+  // `group_indicators`) are assigned to the same equivalence class.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_refs`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `group_indicators`: Vector assigning each reference sequence to a reference group. The group
+  //                       of the n:th sequence is the value at the (n - 1):th position in the vector.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
+  //
 
-  taln->add_trailing_zeros(taln->compressed_size(), taln->n_targets());
-  taln->make_read_only();
-}
-
-void ThemistoToKallisto(const Mode &mode, std::vector<std::istream*> &streams, KallistoAlignment *aln) {
-  // Read in the ec_configs and fill the ec_ids vector
-  Themisto(mode, streams, aln);
-
-  aln->ec_ids = std::vector<uint32_t>(aln->compressed_size(), 0);
-  for (uint32_t i = 0; i < aln->compressed_size(); ++i) {
-    aln->ec_ids[i] = i;
+  // Count the number of distinct reference groups
+  std::set<uint32_t> reference_group_ids;
+  for (size_t i = 0; i < group_indicators.size(); ++i) {
+    reference_group_ids.insert(group_indicators[i]);
   }
+  size_t n_groups = reference_group_ids.size();
+
+  // Read the alignment
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+  GroupedAlignment aln(n_refs, n_groups, n_reads, group_indicators);
+  aln.collapse(ec_configs);
+
+  return aln;
+}
+
+KallistoAlignment ThemistoToKallisto(const bm::set_operation &merge_op, const size_t n_refs, std::vector<std::istream*> &streams) {
+  // telescope::read::ThemistoToKallisto
+  //
+  // Read in a Themisto pseudoalignment and convert it into a Kallisto pseudoalignment.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_refs`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::KallistoAlignment object.
+  //
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+  KallistoAlignment aln(n_refs, n_reads, ec_configs);
+  aln.collapse();
+
+  aln.ec_ids = std::vector<uint32_t>(aln.n_ecs(), 0);
+  for (uint32_t i = 0; i < aln.n_ecs(); ++i) {
+    aln.ec_ids[i] = i;
+  }
+  return aln;
 }
 }
 }
