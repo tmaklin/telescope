@@ -29,6 +29,11 @@
 
 namespace telescope {
 class Alignment {
+private:
+  // Insert a pseudoalignment into the equivalence class format (varies by alignment type, implement in children).
+  // Used by the public collapse() method to create the equivalence classes.
+  virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
+
 protected:
   // Number of reads in the alignment
   uint32_t n_processed;
@@ -43,11 +48,10 @@ protected:
   std::vector<std::vector<uint32_t>> aligned_reads;
 
 public:
-  // Insert a pseudoalignment into the equivalence class format (varies by alignment type, implement in children)
-  virtual void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) =0;
-
-  // Collapse the argument alignment into equivalence classes and their observation counts
-  // Assumes that the internal variables `n_refs` and `n_processed` are the same as in the argument
+  // Collapse the argument alignment into equivalence classes and their observation counts.
+  // Assumes that the internal variables `n_refs` and `n_processed` are the same as in the argument.
+  // The logic for creating the equivalence classes must be implemented in the insert() method in
+  // each realization of the base class.
   void collapse(bm::bvector<> &ec_configs) {
     bm::bvector<> compressed_ec_configs;
     compressed_ec_configs.set_new_blocks_strat(bm::BM_GAP); // Store data in compressed format.
@@ -96,7 +100,6 @@ public:
   // Get the IDs of reads assigned to an equivalence class
   const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
 
-
 };
 
 class ThemistoAlignment : public Alignment{
@@ -104,23 +107,7 @@ private:
   // Store the pseudoalignment as a n_reads (rows) x n_refs (columns) matrix
   bm::bvector<> ec_configs;
 
-public:
-  ThemistoAlignment() = default;
-
-  ThemistoAlignment(const size_t &_n_refs, bm::bvector<> &ec_configs) {
-    this->n_refs = _n_refs;
-    this->n_processed = 0;
-    this->ec_configs = std::move(ec_configs);
-  }
-
-  ThemistoAlignment(const size_t &_n_refs, const size_t &_n_reads, bm::bvector<> &ec_configs) {
-    // Constructor with known final size for ec_configs
-    this->n_refs = _n_refs;
-    this->n_processed = _n_reads;
-    this->ec_configs = std::move(ec_configs);
-  }
-
-  // Insert a pseudoalignment into the equivalence class format
+  // Implement insert() from the base class
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator *bv_it) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -140,6 +127,22 @@ public:
     }
     this->ec_counts[it->second] += 1; // Increment number of times the pattern was observed
     this->aligned_reads[it->second].emplace_back(i);
+  }
+
+public:
+  ThemistoAlignment() = default;
+
+  ThemistoAlignment(const size_t &_n_refs, bm::bvector<> &ec_configs) {
+    this->n_refs = _n_refs;
+    this->n_processed = 0;
+    this->ec_configs = std::move(ec_configs);
+  }
+
+  ThemistoAlignment(const size_t &_n_refs, const size_t &_n_reads, bm::bvector<> &ec_configs) {
+    // Constructor with known final size for ec_configs
+    this->n_refs = _n_refs;
+    this->n_processed = _n_reads;
+    this->ec_configs = std::move(ec_configs);
   }
 
   // Check if ec_id `row` aligned against group `col`.
@@ -168,26 +171,7 @@ private:
   // (core dumped) ` error when the object is deleted.
   std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
 
-public:
-  GroupedAlignment() = default;
-
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
-    this->n_refs = _n_refs;
-    this->n_groups = _n_groups;
-    this->group_indicators = _group_indicators;
-    this->n_processed = 0;
-    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
-  }
-
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
-    this->n_refs = _n_refs;
-    this->n_groups = _n_groups;
-    this->group_indicators = _group_indicators;
-    this->n_processed = _n_reads;
-    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
-  }
-
-  // Insert a pseudoalignment into the equivalence class format
+  // Implement insert() from the base class
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator*) override {
     // Check if the pattern has been observed
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
@@ -206,6 +190,25 @@ public:
     }
     this->ec_counts[it->second] += 1;
     this->aligned_reads[it->second].emplace_back(i);
+  }
+
+public:
+  GroupedAlignment() = default;
+
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
+    this->n_refs = _n_refs;
+    this->n_groups = _n_groups;
+    this->group_indicators = _group_indicators;
+    this->n_processed = 0;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
+  }
+
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
+    this->n_refs = _n_refs;
+    this->n_groups = _n_groups;
+    this->group_indicators = _group_indicators;
+    this->n_processed = _n_reads;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
   }
 
   // Get the number of sequences in group_id that the ec_id aligned against.
