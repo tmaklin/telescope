@@ -8,15 +8,15 @@ library.
 
 # Installation
 Either use the precompiled binary
-* [Linux 64-bit binary](https://github.com/tmaklin/telescope/releases/download/v0.2.1/telescope-v0.2.1_linux_x86-64.tar.gz)
-* [macOS 64-bit binary](https://github.com/tmaklin/telescope/releases/download/v0.2.1/telescope-v0.2.1_macOS_x86-64.tar.gz)
+* [Linux 64-bit binary](https://github.com/tmaklin/telescope/releases/download/v0.5.0/telescope-v0.5.0_linux_x86-64.tar.gz)
 
 or follow the instructions for compiling telescope and libtelescope from source.
 
 ## Compiling from source
 ### Requirements
-- C++11 compliant compiler.
+- C++17 compliant compiler.
 - cmake
+- git
 - zlib
 
 ### How-to
@@ -52,23 +52,21 @@ telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt,pseudos_3.txt,pseudos_4.txt
 ## Merge Themisto paired alignment files
 Convert two pseudoalignments from paired-end reads to a single `pseudos.aln` file by intersecting the pseudoalignments
 ```
-telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o pseudos --format themisto
+telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o pseudos --merge
 ```
 
 ## Accepted options
 telescope accepts the following flags
 ```
-telescope -r <strand_1>,<strand_2> -o <output prefix> --n-refs <number of pseudoalignment targets>
--r              Themisto pseudoalignment(s)
--o	            Output file directory.
---n-refs        Number of reference sequences in the pseudoalignment.
---format	    Output format (kallisto or themisto, default: kallisto
---mode	        How to merge paired-end alignments (one of union, intersection; default: intersection)
---read-compact	Read alignments that have been compressed with alignment-writer (default: false).
+-r	Themisto pseudoalignment(s)
+-o	Output file directory.
+--n-refs	Number of reference sequences in the pseudoalignment.
+--merge	Merge the themisto alignments rather than converting to kallisto format (default: false).
+--mode	How to merge paired-end alignments (one of union, intersection; default: intersection)
 --write-compact	Write themisto format alignments in alignment-writer compressed format (default: true).
---cin           Read the last alignment file from cin (default: false).
---silent	    Suppress status messages (default: false)
---help	        Print the help message.
+--cin	Read the last alignment file from cin (default: false).
+--silent	Suppress status messages (default: false)
+--help	Print the help message.
 ```
 
 # License
