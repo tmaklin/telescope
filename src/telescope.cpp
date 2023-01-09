@@ -42,7 +42,7 @@ void parse_args(int argc, char* argv[], cxxargs::Arguments &args, cxxio::Out &lo
   args.add_short_argument<std::string>('o', "Output file directory.");
   args.add_long_argument<uint32_t>("n-refs", "Number of reference sequences in the pseudoalignment.");
   args.add_long_argument<bool>("merge", "Merge the themisto alignments rather than converting to kallisto format (default: false).", false);
-  args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)", telescope::m_unpaired);
+  args.add_long_argument<telescope::Mode>("mode", "How to merge paired-end alignments (one of union, intersection; default: union)", telescope::m_union);
   args.add_long_argument<bool>("write-compact", "Write themisto format alignments in alignment-writer compressed format (default: true).", true);
   args.add_long_argument<bool>("cin", "Read the last alignment file from cin (default: false).", false);
   args.add_long_argument<bool>("silent", "Suppress status messages (default: false)", false);

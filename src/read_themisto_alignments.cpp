@@ -93,7 +93,7 @@ size_t ReadPairedAlignments(const Mode &mode, const size_t n_targets, std::vecto
   // Reads in one or more pseudoalignment files from themisto for paired reads.
   //
   // Input:
-  //   `mode`: intersect, union, or unpair the paired alignments (one of m_intersection, m_union, m_unpaired).
+  //   `mode`: intersect, union, or unpair the paired alignments (one of m_intersection, m_union).
   //   `streams`: pointers to istreams opened on the pseudoalignment files.
   //   `alignment`: pointer to an object that will contain the results.
   //
@@ -117,9 +117,11 @@ size_t ReadPairedAlignments(const Mode &mode, const size_t n_targets, std::vecto
       if (mode == m_intersection) {
 	// m_intersection: both reads in a pair should align to be considered a match.
 	(*ec_configs) &= new_configs;
-      } else {
-	// m_union or m_unpaired: count alignments regardless of pair's status.
+      } else if (mode == m_union){
+	// m_union: count alignments regardless of pair's status.
 	(*ec_configs) |= new_configs;
+      } else {
+	throw std::runtime_error("Unknown paired alignment merge mode.");
       }
     }
   }

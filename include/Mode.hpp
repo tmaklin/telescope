@@ -26,7 +26,6 @@
 namespace telescope {
 enum Mode { m_unpaired, m_union, m_intersection };
 inline Mode get_mode(const std::string &mode_str) {
-    if (mode_str == "unpaired") return m_unpaired;
     if (mode_str == "union") return m_union;
     if (mode_str == "intersection") return m_intersection;
     throw std::runtime_error("Unrecognized paired-end mode.");

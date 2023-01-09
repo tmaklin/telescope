@@ -43,11 +43,6 @@ telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mo
 ```
 telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode intersection
 ```
-... considering the reads separately (read ids in the second file will
-be incremented by the number of reads in the first file)
-```
-telescope --n-refs 10 -r pseudos_1.txt,pseudos_2.txt -o kallisto_out_folder --mode unpaired
-```
 ... go crazy and do the same with multiple files (the order of the
 reads must match for the union and intersection options to make sense)
 ```
@@ -68,7 +63,7 @@ telescope -r <strand_1>,<strand_2> -o <output prefix> --n-refs <number of pseudo
 -o	            Output file directory.
 --n-refs        Number of reference sequences in the pseudoalignment.
 --format	    Output format (kallisto or themisto, default: kallisto
---mode	        How to merge paired-end alignments (one of unpaired, union, intersection; default: unpaired)
+--mode	        How to merge paired-end alignments (one of union, intersection; default: intersection)
 --read-compact	Read alignments that have been compressed with alignment-writer (default: false).
 --write-compact	Write themisto format alignments in alignment-writer compressed format (default: true).
 --cin           Read the last alignment file from cin (default: false).
