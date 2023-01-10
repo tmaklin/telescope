@@ -193,7 +193,62 @@ private:
   }
 
 public:
+  // Default constructor
   GroupedAlignment() = default;
+
+  // Copy constructor
+  GroupedAlignment(const GroupedAlignment &other) {
+    this->n_groups = other.n_groups;
+    this->group_indicators = other.group_indicators;
+    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>(*other.sparse_group_counts.get()));
+
+    this->n_processed = other.n_processed;
+    this->n_refs = other.n_refs;
+    this->ec_counts = other.ec_counts;
+    this->aligned_reads = other.aligned_reads;
+  }
+
+  // Move constructor
+  GroupedAlignment(GroupedAlignment &&other) {
+    this->n_groups = other.n_groups;
+    this->group_indicators = std::move(other.group_indicators);
+    this->sparse_group_counts = std::move(other.sparse_group_counts);
+
+    this->n_processed = other.n_processed;
+    this->n_refs = other.n_refs;
+    this->ec_counts = std::move(other.ec_counts);
+    this->aligned_reads = std::move(other.aligned_reads);
+  }
+
+  // Copy assignment constructor
+  GroupedAlignment& operator=(const GroupedAlignment &other) {
+    if (&other != this) {
+      this->n_groups = other.n_groups;
+      this->group_indicators = other.group_indicators;
+      this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>(*other.sparse_group_counts.get()));
+
+      this->n_processed = other.n_processed;
+      this->n_refs = other.n_refs;
+      this->ec_counts = other.ec_counts;
+      this->aligned_reads = other.aligned_reads;
+    }
+    return *this;
+  }
+
+  // Move assignment constructor
+  GroupedAlignment& operator=(GroupedAlignment &&other) {
+    if (&other != this) {
+      this->n_groups = other.n_groups;
+      this->group_indicators = std::move(other.group_indicators);
+      this->sparse_group_counts = std::move(other.sparse_group_counts);
+
+      this->n_processed = other.n_processed;
+      this->n_refs = other.n_refs;
+      this->ec_counts = std::move(other.ec_counts);
+      this->aligned_reads = std::move(other.aligned_reads);
+    }
+    return *this;
+  }
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
     this->n_refs = _n_refs;
