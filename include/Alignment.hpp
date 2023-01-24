@@ -100,6 +100,8 @@ public:
   // Get the IDs of reads assigned to an equivalence class
   const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
 
+  // Get all aligned reads
+  const std::vector<std::vector<uint32_t>>& get_aligned_reads() const { return this->aligned_reads; }
 };
 
 class ThemistoAlignment : public Alignment{
