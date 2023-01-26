@@ -132,6 +132,11 @@ size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvect
     // First line contains a ','; stream could be in the compact format.
     size_t n_refs;
     alignment_writer::ReadHeader(line, &n_reads, &n_refs);
+    if (n_refs > n_targets) {
+      throw std::runtime_error("Pseudoalignment file has more target sequences than expected.");
+    } else if (n_targets < n_refs) {
+      throw std::runtime_error("Pseudoalignment file has less target sequences than expected.");
+    }
     // Size is given on the header line.
     ec_configs->resize(n_reads*n_refs);
     ReadCompactAlignment(stream, ec_configs);
