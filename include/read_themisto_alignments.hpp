@@ -22,11 +22,34 @@
 #include <cstddef>
 #include <vector>
 #include <fstream>
+#include <set>
+
+#include "bm64.h"
 
 #include "Alignment.hpp"
 #include "KallistoAlignment.hpp"
 
 namespace telescope {
+// telescope::ReadPairedAlignments
+//
+// Reads one or more pseudoalignment files from Themisto for
+// paired reads into `ec_configs`. Can be in plaintext or alignment-writer
+// format. Returns the number of reads (unaligned + aligned) in the
+// alignment.
+//
+// Input:
+//   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+//   `n_targets`: number of pseudoalignment targets (reference
+//                sequences). It's not possible to infer this from the plaintext Themisto
+//                file format so has to be provided separately. If the file is in the
+//                compact format will check that the numbers match.
+//   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+//   `ec_configs`: pointer to the output variable that will contain the alignment.
+// Output:
+//   `n_reads`: total number of reads in the pseudoalignment (unaligned + aligned).
+//
+size_t ReadPairedAlignments(const bm::set_operation &merge_op, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs);
+
 namespace read {
 // Functions for reading pseudoalignment files into telescope::Alignment objects.
 
@@ -70,6 +93,9 @@ ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t 
 // reference sequences in each reference group (defined by
 // `group_indicators`) are assigned to the same equivalence class.
 //
+// Template parameter:
+//   T: size type required to store the size of the largest group. This has a significant effect
+//      on the memory usage of this class, so choose carefully.
 // Input:
 //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
 //   `n_refs`: number of pseudoalignment targets (reference
@@ -81,7 +107,43 @@ ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t 
 //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
 // Output:
 //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
-GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
+template <typename T>
+GroupedAlignment<T> ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
+  // telescope::read::ThemistoGrouped
+  //
+  // Read in a Themisto pseudoalignment and collapse it into
+  // equivalence classes. Reads that align to the same number of
+  // reference sequences in each reference group (defined by
+  // `group_indicators`) are assigned to the same equivalence class.
+  //
+  // Input:
+  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+  //   `n_refs`: number of pseudoalignment targets (reference
+  //                sequences). It's not possible to infer this from the plaintext Themisto
+  //                file format so has to be provided separately. If the file is in the
+  //                compact format will check that the numbers match.
+  //   `group_indicators`: Vector assigning each reference sequence to a reference group. The group
+  //                       of the n:th sequence is the value at the (n - 1):th position in the vector.
+  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
+  //
+
+  // Count the number of distinct reference groups
+  std::set<uint32_t> reference_group_ids;
+  for (size_t i = 0; i < group_indicators.size(); ++i) {
+    reference_group_ids.insert(group_indicators[i]);
+  }
+  size_t n_groups = reference_group_ids.size();
+
+  // Read the alignment
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+  GroupedAlignment<T> aln(n_refs, n_groups, n_reads, group_indicators);
+  aln.collapse(ec_configs);
+
+  return aln;
+}
 
 // telescope::read::ThemistoToKallisto
 //

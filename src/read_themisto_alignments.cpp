@@ -20,9 +20,7 @@
 
 #include <string>
 #include <sstream>
-#include <set>
 
-#include "bm64.h"
 #include "unpack.hpp"
 
 #include "telescope.hpp"
@@ -244,43 +242,6 @@ ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t 
   bm::bvector<> ec_configs(bm::BM_GAP);
   size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
   ThemistoAlignment aln(n_refs, n_reads, ec_configs);
-  return aln;
-}
-
-GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams) {
-  // telescope::read::ThemistoGrouped
-  //
-  // Read in a Themisto pseudoalignment and collapse it into
-  // equivalence classes. Reads that align to the same number of
-  // reference sequences in each reference group (defined by
-  // `group_indicators`) are assigned to the same equivalence class.
-  //
-  // Input:
-  //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
-  //   `n_refs`: number of pseudoalignment targets (reference
-  //                sequences). It's not possible to infer this from the plaintext Themisto
-  //                file format so has to be provided separately. If the file is in the
-  //                compact format will check that the numbers match.
-  //   `group_indicators`: Vector assigning each reference sequence to a reference group. The group
-  //                       of the n:th sequence is the value at the (n - 1):th position in the vector.
-  //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
-  // Output:
-  //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
-  //
-
-  // Count the number of distinct reference groups
-  std::set<uint32_t> reference_group_ids;
-  for (size_t i = 0; i < group_indicators.size(); ++i) {
-    reference_group_ids.insert(group_indicators[i]);
-  }
-  size_t n_groups = reference_group_ids.size();
-
-  // Read the alignment
-  bm::bvector<> ec_configs(bm::BM_GAP);
-  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
-  GroupedAlignment aln(n_refs, n_groups, n_reads, group_indicators);
-  aln.collapse(ec_configs);
-
   return aln;
 }
 

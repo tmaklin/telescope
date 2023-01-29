@@ -156,6 +156,7 @@ public:
   const bm::bvector<> &get_configs() const { return this->ec_configs; }
 };
 
+template <typename T>
 struct GroupedAlignment : public Alignment {
 private:
   // Total number of reference groups
@@ -166,7 +167,7 @@ private:
 
   // Number of sequences in each group that reads belonging to an
   // equivalence class aligned against.
-  bm::sparse_vector<uint16_t, bm::bvector<>> sparse_group_counts;
+  bm::sparse_vector<T, bm::bvector<>> sparse_group_counts;
 
   // Implement insert() from the base class
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator*) override {
@@ -192,7 +193,7 @@ private:
 public:
   // Default constructor
   GroupedAlignment() {
-    this->sparse_group_counts = bm::sparse_vector<uint16_t, bm::bvector<>>();
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
@@ -200,7 +201,7 @@ public:
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = 0;
-    this->sparse_group_counts = bm::sparse_vector<uint16_t, bm::bvector<>>();
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
   GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
@@ -208,11 +209,11 @@ public:
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = _n_reads;
-    this->sparse_group_counts = bm::sparse_vector<uint16_t, bm::bvector<>>();
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
   // Get the number of sequences in group_id that the ec_id aligned against.
-  uint16_t get_group_count(const size_t group_id, const size_t ec_id) const {
+  T get_group_count(const size_t group_id, const size_t ec_id) const {
     size_t pos = ec_id*this->n_groups + group_id;
     return this->sparse_group_counts[pos];
   }
