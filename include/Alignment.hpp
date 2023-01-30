@@ -86,6 +86,9 @@ public:
     ec_configs.freeze();
   }
 
+  // Check if `row` aligned against `col`.
+  virtual size_t operator()(const size_t row, const size_t col) const =0;
+
   // Get the total number of equivalence classes in the alignment
   size_t n_ecs() const { return ec_counts.size(); }
 
@@ -147,7 +150,7 @@ public:
   }
 
   // Check if ec_id `row` aligned against group `col`.
-  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
+  size_t operator()(const size_t row, const size_t col) const override { return this->ec_configs[row*this->n_refs + col]; }
 
   // Collapse the stored pseudoalignment into equivalence classes and their observation counts.
   void collapse() { Alignment::collapse(this->ec_configs); }
@@ -217,6 +220,8 @@ public:
     size_t pos = ec_id*this->n_groups + group_id;
     return this->sparse_group_counts[pos];
   }
+
+  size_t operator()(const size_t row, const size_t col) const override { return this->get_group_count(row, col); }
 
 };
 }
