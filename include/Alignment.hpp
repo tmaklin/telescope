@@ -159,14 +159,14 @@ public:
   const bm::bvector<> &get_configs() const { return this->ec_configs; }
 };
 
-template <typename T>
+template <typename T, typename V>
 struct GroupedAlignment : public Alignment {
 private:
   // Total number of reference groups
   uint16_t n_groups;
 
   // Vector reference sequence at <position> to the group at <value>
-  std::vector<uint32_t> group_indicators;
+  std::vector<V> group_indicators;
 
   // Number of sequences in each group that reads belonging to an
   // equivalence class aligned against.
@@ -178,10 +178,10 @@ private:
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       this->ec_counts.emplace_back(0);
-      it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
+      it = ec_to_pos->insert(std::make_pair(current_ec, (uint32_t)*ec_id)).first;
 
       size_t read_start = (*ec_id)*this->n_groups;
-      for (uint32_t j = 0; j  < this->n_refs; ++j) {
+      for (size_t j = 0; j  < this->n_refs; ++j) {
 	if (current_ec[j]) {
 	  this->sparse_group_counts.inc(read_start + this->group_indicators[j]);
 	}
@@ -199,7 +199,7 @@ public:
     this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<V> _group_indicators) {
     this->n_refs = _n_refs;
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
@@ -207,7 +207,7 @@ public:
     this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<V> _group_indicators) {
     this->n_refs = _n_refs;
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
