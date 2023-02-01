@@ -140,7 +140,18 @@ size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvect
     }
     // Size is given on the header line.
     ec_configs->resize(n_reads*n_refs);
-    ReadCompactAlignment(stream, ec_configs);
+    size_t n_threads = 1;
+#if defined(TELESCOPE_OPENMP_SUPPORT) && (TELESCOPE_OPENMP_SUPPORT) == 1
+    #pragma omp parallel
+    {
+	n_threads = omp_get_num_threads();
+    }
+#endif
+    if (n_threads > 1) {
+	alignment_writer::ParallelUnpackData(stream, ec_configs);
+    } else {
+	alignment_writer::UnpackData(stream, ec_configs);
+    }
   } else {
     // Stream could be in the plaintext format.
     // Size is unknown.
