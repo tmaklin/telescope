@@ -150,9 +150,9 @@ size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvect
     }
 #endif
     if (n_threads > 1) {
-	alignment_writer::ParallelUnpackData(stream, ec_configs);
+	alignment_writer::ParallelUnpackData(stream, *ec_configs);
     } else {
-	alignment_writer::UnpackData(stream, ec_configs);
+	alignment_writer::UnpackData(stream, *ec_configs);
     }
   } else {
     // Stream could be in the plaintext format.
