@@ -22,7 +22,6 @@
 #include <cstddef>
 #include <vector>
 #include <unordered_map>
-#include <memory>
 
 #include "bm64.h"
 #include "bmsparsevec.h"
@@ -87,6 +86,9 @@ public:
     ec_configs.freeze();
   }
 
+  // Check if `row` aligned against `col`.
+  virtual size_t operator()(const size_t row, const size_t col) const =0;
+
   // Get the total number of equivalence classes in the alignment
   size_t n_ecs() const { return ec_counts.size(); }
 
@@ -100,6 +102,8 @@ public:
   // Get the IDs of reads assigned to an equivalence class
   const std::vector<uint32_t>& reads_assigned_to_ec(const size_t &ec_id) const { return this->aligned_reads[ec_id]; }
 
+  // Get all aligned reads
+  const std::vector<std::vector<uint32_t>>& get_aligned_reads() const { return this->aligned_reads; }
 };
 
 class ThemistoAlignment : public Alignment{
@@ -146,7 +150,7 @@ public:
   }
 
   // Check if ec_id `row` aligned against group `col`.
-  bool operator()(const size_t row, const size_t col) const { return this->ec_configs[row*this->n_refs + col]; }
+  size_t operator()(const size_t row, const size_t col) const override { return this->ec_configs[row*this->n_refs + col]; }
 
   // Collapse the stored pseudoalignment into equivalence classes and their observation counts.
   void collapse() { Alignment::collapse(this->ec_configs); }
@@ -155,21 +159,18 @@ public:
   const bm::bvector<> &get_configs() const { return this->ec_configs; }
 };
 
+template <typename T, typename V>
 struct GroupedAlignment : public Alignment {
 private:
   // Total number of reference groups
   uint16_t n_groups;
 
   // Vector reference sequence at <position> to the group at <value>
-  std::vector<uint32_t> group_indicators;
+  std::vector<V> group_indicators;
 
   // Number of sequences in each group that reads belonging to an
   // equivalence class aligned against.
-  //
-  // For some bizarre reason not
-  // using a pointer causes a `munmap_chunk(): invalid pointer Aborted
-  // (core dumped) ` error when the object is deleted.
-  std::unique_ptr<bm::sparse_vector<uint16_t, bm::bvector<>>> sparse_group_counts;
+  bm::sparse_vector<T, bm::bvector<>> sparse_group_counts;
 
   // Implement insert() from the base class
   void insert(const std::vector<bool> &current_ec, const size_t &i, size_t *ec_id, std::unordered_map<std::vector<bool>, uint32_t> *ec_to_pos, bm::bvector<>::bulk_insert_iterator*) override {
@@ -177,12 +178,12 @@ private:
     std::unordered_map<std::vector<bool>, uint32_t>::iterator it = ec_to_pos->find(current_ec);
     if (it == ec_to_pos->end()) {
       this->ec_counts.emplace_back(0);
-      it = ec_to_pos->insert(std::make_pair(current_ec, *ec_id)).first;
+      it = ec_to_pos->insert(std::make_pair(current_ec, (uint32_t)*ec_id)).first;
 
       size_t read_start = (*ec_id)*this->n_groups;
-      for (uint32_t j = 0; j  < this->n_refs; ++j) {
+      for (size_t j = 0; j  < this->n_refs; ++j) {
 	if (current_ec[j]) {
-	  this->sparse_group_counts->inc(read_start + this->group_indicators[j]);
+	  this->sparse_group_counts.inc(read_start + this->group_indicators[j]);
 	}
       }
       this->aligned_reads.emplace_back(std::vector<uint32_t>());
@@ -193,29 +194,34 @@ private:
   }
 
 public:
-  GroupedAlignment() = default;
+  // Default constructor
+  GroupedAlignment() {
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
+  }
 
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<uint32_t> _group_indicators) {
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const std::vector<V> _group_indicators) {
     this->n_refs = _n_refs;
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = 0;
-    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
-  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<uint32_t> _group_indicators) {
+  GroupedAlignment(const size_t _n_refs, const size_t _n_groups, const size_t _n_reads, const std::vector<V> _group_indicators) {
     this->n_refs = _n_refs;
     this->n_groups = _n_groups;
     this->group_indicators = _group_indicators;
     this->n_processed = _n_reads;
-    this->sparse_group_counts.reset(new bm::sparse_vector<uint16_t, bm::bvector<>>());
+    this->sparse_group_counts = bm::sparse_vector<T, bm::bvector<>>();
   }
 
   // Get the number of sequences in group_id that the ec_id aligned against.
-  uint16_t get_group_count(const size_t group_id, const size_t ec_id) const {
+  T get_group_count(const size_t group_id, const size_t ec_id) const {
     size_t pos = ec_id*this->n_groups + group_id;
-    return (*this->sparse_group_counts)[pos];
+    return this->sparse_group_counts[pos];
   }
+
+  size_t operator()(const size_t row, const size_t col) const override { return this->get_group_count(row, col); }
 
 };
 }

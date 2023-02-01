@@ -22,11 +22,46 @@
 #include <cstddef>
 #include <vector>
 #include <fstream>
+#include <memory>
+#include <set>
 
 #include "Alignment.hpp"
 #include "KallistoAlignment.hpp"
 
 namespace telescope {
+// telescope::ReadPairedAlignments
+//
+// Reads one or more pseudoalignment files from Themisto for
+// paired reads into `ec_configs`. Can be in plaintext or alignment-writer
+// format. Returns the number of reads (unaligned + aligned) in the
+// alignment.
+//
+// Input:
+//   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
+//   `n_targets`: number of pseudoalignment targets (reference
+//                sequences). It's not possible to infer this from the plaintext Themisto
+//                file format so has to be provided separately. If the file is in the
+//                compact format will check that the numbers match.
+//   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+//   `ec_configs`: pointer to the output variable that will contain the alignment.
+// Output:
+//   `n_reads`: total number of reads in the pseudoalignment (unaligned + aligned).
+//
+size_t ReadPairedAlignments(const bm::set_operation &merge_op, const size_t n_targets, std::vector<std::istream*> &streams, bm::bvector<> *ec_configs);
+
+template<typename T>
+size_t get_max_size(const std::vector<T> &group_indicators, const size_t n_groups) {
+  std::vector<size_t> sizes(n_groups, 0);
+  for (size_t i = 0; i < group_indicators.size(); ++i) {
+    ++sizes[group_indicators[i]];
+  }
+  size_t max_size = 0;
+  for (size_t i = 0; i < n_groups; ++i) {
+    max_size = (sizes[i] > max_size ? sizes[i] : max_size);
+  }
+  return max_size;
+}
+
 namespace read {
 // Functions for reading pseudoalignment files into telescope::Alignment objects.
 
@@ -70,6 +105,9 @@ ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t 
 // reference sequences in each reference group (defined by
 // `group_indicators`) are assigned to the same equivalence class.
 //
+// Template parameter:
+//   T: size type required to store the size of the largest group. This has a significant effect
+//      on the memory usage of this class, so choose carefully.
 // Input:
 //   `merge_op`: bm::set_OR for union or bm::set_AND for intersection of multiple alignmnet files
 //   `n_refs`: number of pseudoalignment targets (reference
@@ -81,7 +119,40 @@ ThemistoAlignment ThemistoPlain(const bm::set_operation &merge_op, const size_t 
 //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
 // Output:
 //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
-GroupedAlignment ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<uint32_t> &group_indicators, std::vector<std::istream*> &streams);
+//   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+// Output:
+//   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
+//
+template<typename T>
+void ThemistoGrouped(const bm::set_operation &merge_op, const size_t n_refs, const std::vector<T> &group_indicators, std::vector<std::istream*> &streams, std::unique_ptr<Alignment> &aln) {
+      //   `streams`: vector of pointers to the istreams opened on the pseudoalignment files.
+  // Output:
+  //   `aln`: The pseudoalignment as a telescope::GroupedAlignment object.
+  //
+
+  // Count the number of distinct reference groups
+  std::set<T> reference_group_ids;
+  for (size_t i = 0; i < group_indicators.size(); ++i) {
+    reference_group_ids.insert(group_indicators[i]);
+  }
+  size_t n_groups = reference_group_ids.size();
+  size_t max_size = get_max_size(group_indicators, n_groups);
+
+  // Read the alignment
+  bm::bvector<> ec_configs(bm::BM_GAP);
+  size_t n_reads = ReadPairedAlignments(merge_op, n_refs, streams, &ec_configs);
+
+  if (max_size <= std::numeric_limits<uint8_t>::max()) {
+    aln.reset(new GroupedAlignment<uint8_t, T>(n_refs, n_groups, n_reads, group_indicators));
+  } else if (max_size <= std::numeric_limits<uint16_t>::max()) {
+    aln.reset(new GroupedAlignment<uint16_t, T>(n_refs, n_groups, n_reads, group_indicators));
+  } else if (max_size <= std::numeric_limits<uint32_t>::max()) {
+    aln.reset(new GroupedAlignment<uint32_t, T>(n_refs, n_groups, n_reads, group_indicators));
+  } else {
+    aln.reset(new GroupedAlignment<uint64_t, T>(n_refs, n_groups, n_reads, group_indicators));
+  }
+  aln->collapse(ec_configs);
+}
 
 // telescope::read::ThemistoToKallisto
 //

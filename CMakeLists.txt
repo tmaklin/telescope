@@ -62,8 +62,21 @@ if (ZLIB_FOUND)
   target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
 endif()
 
-## Check dependencies and download them if not found
+## Check dependencies
+find_package(OpenMP)
+if (OPENMP_FOUND)
+  set(TELESCOPE_OPENMP_SUPPORT 1)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_PARALLEL")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
+else()
+  set(TELESCOPE_OPENMP_SUPPORT 0)
+endif()
 
+## Configure OpenMP if it is supported on the system.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_openmp_config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_openmp_config.hpp @ONLY)
+
+## Check and and download them if not found
 ## BitMagic - supplied with the project
 ## BitMagic
 if (DEFINED CMAKE_BITMAGIC_HEADERS)
@@ -216,3 +229,8 @@ endif()
 
 ## Generate a telescope_version.h file containing build version and timestamp
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_version.h @ONLY)
+
+# Link libraries
+if (OPENMP_FOUND)
+  target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
+endif()
