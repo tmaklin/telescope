@@ -26,6 +26,8 @@
 #include "bm64.h"
 #include "unpack.hpp"
 
+#include "telescope_openmp_config.hpp"
+
 #include "telescope.hpp"
 
 namespace telescope {
