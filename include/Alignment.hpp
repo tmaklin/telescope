@@ -163,7 +163,7 @@ template <typename T, typename V>
 struct GroupedAlignment : public Alignment {
 private:
   // Total number of reference groups
-  uint16_t n_groups;
+  V n_groups;
 
   // Vector reference sequence at <position> to the group at <value>
   std::vector<V> group_indicators;
