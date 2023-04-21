@@ -99,14 +99,23 @@ size_t ReadPlaintextAlignment(const size_t n_targets, std::string &line, std::is
   //
   bm::bvector<>::bulk_insert_iterator it(*ec_configs); // Bulk insert iterator buffers the insertions
 
-  // Contents of the first line is already stored in `line`
-  ReadPlaintextLine(n_targets, line, it);
   size_t n_reads = 1;
-
-  while (std::getline(*stream, line)) {
-    // Insert each line into the alignment
+  try {
+    // Contents of the first line is already stored in `line`
     ReadPlaintextLine(n_targets, line, it);
-    ++n_reads;
+
+    while (std::getline(*stream, line)) {
+      // Insert each line into the alignment
+      ReadPlaintextLine(n_targets, line, it);
+      ++n_reads;
+    }
+  } catch (const std::exception &e) {
+    std::string msg(e.what());
+    if (msg.find("stoul") != std::string::npos) {
+      throw std::runtime_error("File format not supported on line " + std::to_string(n_reads) + " with content: " + line);
+    } else {
+      throw std::runtime_error("Could not parse line " + std::to_string(n_reads) + " with content: " + line);
+    }
   }
   return n_reads;
 }
