@@ -111,7 +111,6 @@ size_t ReadPlaintextAlignment(const size_t n_targets, std::string &line, std::is
     }
   } catch (const std::exception &e) {
     std::string msg(e.what());
-    std::cerr << msg << std::endl;
     if (msg.find("stoul") != std::string::npos) {
       throw std::runtime_error("File format not supported on line " + std::to_string(n_reads) + " with content: " + line);
     } else {
