@@ -65,7 +65,7 @@ add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 ## Dependencies
 ### Check supported compression types
 #### zlib
-if (DEFINED ZLIB_LIBRARIES AND DEFINED ZLIB_INCLUDE_DIR)
+if ((DEFINED ZLIB_LIBRARIES AND DEFINED ZLIB_INCLUDE_DIR) AND (NOT DEFINED ZLIB_FOUND))
   message(STATUS "zlib library provided in: " ${ZLIB_LIBRARIES})
   message(STATUS "zlib headers provided in: " ${ZLIB_INCLUDE_DIR})
   include_directories(${ZLIB_INCLUDE_DIRS})
@@ -79,7 +79,7 @@ else()
 endif()
 
 #### bzip2
-if (DEFINED BZIP2_LIBRARIES AND DEFINED BZIP2_INCLUDE_DIR)
+if (DEFINED BZIP2_LIBRARIES AND DEFINED BZIP2_INCLUDE_DIR AND (NOT DEFINED BZIP2_FOUND))
   message(STATUS "bzip2 library provided in: " ${BZIP2_LIBRARIES})
   message(STATUS "bzip2 headers provided in: " ${BZIP2_INCLUDE_DIR})
   include_directories(${BZIP2_INCLUDE_DIRS})
@@ -93,7 +93,7 @@ else()
 endif()
 
 #### lzma
-if (DEFINED LIBLZMA_LIBRARIES AND DEFINED LIBLZMA_INCLUDE_DIR)
+if (DEFINED LIBLZMA_LIBRARIES AND DEFINED LIBLZMA_INCLUDE_DIR AND (NOT DEFINED LIBLZMA_FOUND))
   message(STATUS "liblzma library provided in: " ${LIBLZMA_LIBRARIES})
   message(STATUS "liblzma headers provided in: " ${LIBLZMA_INCLUDE_DIR})
   include_directories(${LIBLZMA_INCLUDE_DIRS})
