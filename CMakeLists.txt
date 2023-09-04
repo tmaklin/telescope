@@ -97,7 +97,7 @@ if (DEFINED LIBLZMA_LIBRARY AND DEFINED LIBLZMA_INCLUDE_DIR AND (NOT DEFINED LIB
   message(STATUS "liblzma library provided in: " ${LIBLZMA_LIBRARY})
   message(STATUS "liblzma headers provided in: " ${LIBLZMA_INCLUDE_DIR})
   include_directories(${LIBLZMA_INCLUDE_DIRS})
-  target_link_library(telescope libtelescope ${LIBLZMA_LIBRARY})
+  target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARY})
 else()
   find_package(LibLZMA)
   if (LIBLZMA_FOUND)
