@@ -4,8 +4,6 @@ project (telescope)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(ZLIB REQUIRED)
-
 ## Determine build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release) ## Build Release by default
@@ -35,6 +33,25 @@ else()
   add_compile_options(-std=c++17)
 endif()
 
+## Get version number from git tags
+find_package(Git)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} describe --tags
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    OUTPUT_VARIABLE TELESCOPE_BUILD_VERSION
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message( STATUS "telescope version: ${TELESCOPE_BUILD_VERSION}")
+else()
+  message(STATUS "GIT not found, version numbering disabled")
+  set(TELESCOPE_BUILD_VERSION "unknown")
+endif()
+string(TIMESTAMP TELESCOPE_BUILD_TIMESTAMP)
+### Generate a telescope_version.h file containing build version and timestamp
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_version.h @ONLY)
+
 ## telescope library
 add_library(libtelescope
 ${CMAKE_CURRENT_SOURCE_DIR}/src/write_alignments.cpp
@@ -45,40 +62,67 @@ set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 ## telescope executable
 add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 
-## Check supported compression types
-find_package(BZip2)
-if (BZIP2_FOUND)
-  include_directories(${BZIP2_INCLUDE_DIRS})
-  target_link_libraries(telescope libtelescope ${BZIP2_LIBRARIES})
-endif()
-find_package(LibLZMA)
-if (LIBLZMA_FOUND)
-  include_directories(${LIBLZMA_INCLUDE_DIRS})
-  target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARIES})
-endif()
-find_package(ZLIB)
-if (ZLIB_FOUND)
+## Dependencies
+### Check supported compression types
+#### zlib
+if (DEFINED ZLIB_LIBRARIES AND DEFINED ZLIB_INCLUDE_DIR)
+  message(STATUS "zlib library provided in: " ${ZLIB_LIBRARIES})
+  message(STATUS "zlib headers provided in: " ${ZLIB_INCLUDE_DIR})
   include_directories(${ZLIB_INCLUDE_DIRS})
   target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
+else()
+  find_package(ZLIB)
+  if (ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
+  endif()
 endif()
 
-## Check dependencies
+#### bzip2
+if (DEFINED BZIP2_LIBRARIES AND DEFINED BZIP2_INCLUDE_DIR)
+  message(STATUS "bzip2 library provided in: " ${BZIP2_LIBRARIES})
+  message(STATUS "bzip2 headers provided in: " ${BZIP2_INCLUDE_DIR})
+  include_directories(${BZIP2_INCLUDE_DIRS})
+  target_link_libraries(telescope libtelescope ${BZIP2_LIBRARIES})
+else()
+  find_package(BZip2)
+  if (BZIP2_FOUND)
+    include_directories(${BZIP2_INCLUDE_DIRS})
+    target_link_libraries(telescope libtelescope ${BZIP2_LIBRARIES})
+  endif()
+endif()
+
+#### lzma
+if (DEFINED LIBLZMA_LIBRARIES AND DEFINED LIBLZMA_INCLUDE_DIR)
+  message(STATUS "liblzma library provided in: " ${LIBLZMA_LIBRARIES})
+  message(STATUS "liblzma headers provided in: " ${LIBLZMA_INCLUDE_DIR})
+  include_directories(${LIBLZMA_INCLUDE_DIRS})
+  target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARIES})
+else()
+  find_package(LibLZMA)
+  if (LIBLZMA_FOUND)
+    include_directories(${LIBLZMA_INCLUDE_DIRS})
+    target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARIES})
+  endif()
+endif()
+
+### Check OpenMP support
 find_package(OpenMP)
 if (OPENMP_FOUND)
   set(TELESCOPE_OPENMP_SUPPORT 1)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_PARALLEL")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
+  target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
 else()
   set(TELESCOPE_OPENMP_SUPPORT 0)
 endif()
-
-## Configure OpenMP if it is supported on the system.
+#### Configure OpenMP if it is supported on the system.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_openmp_config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_openmp_config.hpp @ONLY)
 
-## Check and and download them if not found
-## BitMagic - supplied with the project
-## BitMagic
+### Check required dependenciesand and download them if not found
+#### BitMagic - supplied with the project
+#### BitMagic
 if (DEFINED CMAKE_BITMAGIC_HEADERS)
   message(STATUS "BitMagic headers provided in: ${CMAKE_BITMAGIC_HEADERS}")
 else()
@@ -86,11 +130,7 @@ else()
 endif()
 include_directories(${CMAKE_BITMAGIC_HEADERS})
 
-## Own header files
-set(CMAKE_TELESCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_TELESCOPE_HEADERS})
-
-## bxzstr
+#### bxzstr
 if (DEFINED CMAKE_BXZSTR_HEADERS)
   message(STATUS "bxzstr headers provided in: ${CMAKE_BXZSTR_HEADERS}")
 else()
@@ -111,7 +151,7 @@ else()
 endif()
 include_directories(${CMAKE_BXZSTR_HEADERS})
 
-## cxxargs
+#### cxxargs
 if (DEFINED CMAKE_CXXARGS_HEADERS)
   message(STATUS "cxxargs headers provided in: ${CMAKE_CXXARGS_HEADERS}")
 else()
@@ -132,7 +172,7 @@ else()
 endif()
 include_directories(${CMAKE_CXXARGS_HEADERS})
 
-## cxxio
+#### cxxio
 if (DEFINED CMAKE_CXXIO_HEADERS)
   message(STATUS "cxxio headers provided in: ${CMAKE_CXXIO_HEADERS}")
 else()
@@ -153,7 +193,7 @@ else()
 endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
-## alignment-writer
+#### alignment-writer
 if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS)
   message(STATUS "alignment-writer headers provided in: ${CMAKE_ALIGNMENT_WRITER_HEADERS}")
   target_link_libraries(telescope libalignmentwriter)
@@ -179,24 +219,7 @@ else()
 endif()
 include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
 
-## Get version number from git tags
-find_package(Git)
-if(GIT_FOUND)
-  execute_process(
-    COMMAND ${GIT_EXECUTABLE} describe --tags
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    OUTPUT_VARIABLE TELESCOPE_BUILD_VERSION
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  message( STATUS "telescope version: ${TELESCOPE_BUILD_VERSION}")
-else()
-  message(STATUS "GIT not found, version numbering disabled")
-  set(TELESCOPE_BUILD_VERSION "unknown")
-endif()
-string(TIMESTAMP TELESCOPE_BUILD_TIMESTAMP)
-
-## Download googletest if building tests
+#### Download googletest if building tests
 if(CMAKE_BUILD_TESTS)
   if (DEFINED CMAKE_GOOGLETEST_HEADERS)
     message(STATUS "googletest headers provided in: ${CMAKE_GOOGLETEST_HEADERS}")
@@ -227,10 +250,6 @@ if(CMAKE_BUILD_TESTS)
   # target_link_libraries(runUnitTets libtelescope)
 endif()
 
-## Generate a telescope_version.h file containing build version and timestamp
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_version.h @ONLY)
-
-# Link libraries
-if (OPENMP_FOUND)
-  target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
-endif()
+## Project headers
+set(CMAKE_TELESCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_TELESCOPE_HEADERS})
