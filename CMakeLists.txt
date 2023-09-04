@@ -65,16 +65,16 @@ add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 ## Dependencies
 ### Check supported compression types
 #### zlib
-if ((DEFINED ZLIB_LIBRARIES AND DEFINED ZLIB_INCLUDE_DIR) AND (NOT DEFINED ZLIB_FOUND))
-  message(STATUS "zlib library provided in: " ${ZLIB_LIBRARIES})
+if ((DEFINED ZLIB_LIBRARY AND DEFINED ZLIB_INCLUDE_DIR) AND (NOT DEFINED ZLIB_FOUND))
+  message(STATUS "zlib library provided in: " ${ZLIB_LIBRARY})
   message(STATUS "zlib headers provided in: " ${ZLIB_INCLUDE_DIR})
   include_directories(${ZLIB_INCLUDE_DIRS})
-  target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
+  target_link_libraries(telescope libtelescope ${ZLIB_LIBRARY})
 else()
   find_package(ZLIB)
   if (ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    target_link_libraries(telescope libtelescope ${ZLIB_LIBRARIES})
+    target_link_libraries(telescope libtelescope ${ZLIB_LIBRARY})
   endif()
 endif()
 
