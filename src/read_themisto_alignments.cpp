@@ -104,10 +104,14 @@ size_t ReadPlaintextAlignment(const size_t n_targets, std::string &line, std::is
     // Contents of the first line is already stored in `line`
     ReadPlaintextLine(n_targets, line, it);
 
+    size_t compress_interval = 1000000;
     while (std::getline(*stream, line)) {
       // Insert each line into the alignment
       ReadPlaintextLine(n_targets, line, it);
       ++n_reads;
+      if (n_reads % compress_interval == 0) {
+	  ec_configs->optimize();
+      }
     }
   } catch (const std::exception &e) {
     std::string msg(e.what());
@@ -166,6 +170,7 @@ size_t ReadAlignmentFile(const size_t n_targets, std::istream *stream, bm::bvect
   } else {
     // Stream could be in the plaintext format.
     // Size is unknown.
+    ec_configs->set_new_blocks_strat(bm::BM_GAP);
     n_reads = ReadPlaintextAlignment(n_targets, line, stream, ec_configs);
   }
   return n_reads;
