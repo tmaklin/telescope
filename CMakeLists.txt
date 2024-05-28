@@ -1,8 +1,9 @@
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.11)
 project (telescope)
+include(FetchContent)
 
-set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
 ## Determine build type
 if(NOT CMAKE_BUILD_TYPE)
@@ -22,6 +23,35 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math -funroll-loops")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -ffast-math -funroll-loops")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ffast-math -funroll-loops")
+  endif()
+endif()
+
+## FLTO
+if(CMAKE_BUILD_WITH_FLTO)
+  cmake_policy(SET CMP0069 NEW)
+  set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION 1)
+endif()
+
+## Native instructions
+if (CMAKE_WITH_NATIVE_INSTRUCTIONS)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native -mtune=native")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mtune=native")
+else()
+  set(CMAKE_WITH_NATIVE_INSTRUCTIONS 0)
+endif()
+
+## PGO
+if(CMAKE_PGO_GENERATE AND NOT CMAKE_PGO_USE)
+  if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+  else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-generate")
+  endif()
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-generate")
   endif()
 endif()
 
@@ -134,20 +164,19 @@ include_directories(${CMAKE_BITMAGIC_HEADERS})
 if (DEFINED CMAKE_BXZSTR_HEADERS)
   message(STATUS "bxzstr headers provided in: ${CMAKE_BXZSTR_HEADERS}")
 else()
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-bxzstr.txt.in ${CMAKE_BINARY_DIR}/external/bxzstr-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bxzstr-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for bxzstr failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/bxzstr-download )
-  if(result)
-    message(FATAL_ERROR "Build step for bxzstr failed: ${result}")
-  endif()
-  set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/bxzstr/include)
+  FetchContent_Declare(bxzstr
+    GIT_REPOSITORY    https://github.com/tmaklin/bxzstr.git
+    GIT_TAG           v1.1.0
+    PREFIX            "external"
+    SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/bxzstr"
+    BUILD_IN_SOURCE   0
+    CMAKE_ARGS        -D ZSTD_FOUND=0
+    BUILD_COMMAND     ""
+    CONFIGURE_COMMAND ""
+    INSTALL_COMMAND   ""
+    )
+  FetchContent_MakeAvailable(bxzstr)
+  set(CMAKE_BXZSTR_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/bxzstr/include)
 endif()
 include_directories(${CMAKE_BXZSTR_HEADERS})
 
@@ -155,100 +184,124 @@ include_directories(${CMAKE_BXZSTR_HEADERS})
 if (DEFINED CMAKE_CXXARGS_HEADERS)
   message(STATUS "cxxargs headers provided in: ${CMAKE_CXXARGS_HEADERS}")
 else()
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-cxxargs.txt.in ${CMAKE_BINARY_DIR}/external/cxxargs-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for cxxargs failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxargs-download )
-  if(result)
-    message(FATAL_ERROR "Build step for cxxargs failed: ${result}")
-  endif()
-  set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxargs/include)
+  FetchContent_Declare(cxxargs
+    GIT_REPOSITORY    https://github.com/tmaklin/cxxargs.git
+    GIT_TAG           v1.1.4
+    PREFIX            "external"
+    SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/cxxargs"
+    BUILD_IN_SOURCE   0
+    BUILD_COMMAND     ""
+    CONFIGURE_COMMAND ""
+    INSTALL_COMMAND   ""
+    )
+  FetchContent_MakeAvailable(cxxargs)
+  set(CMAKE_CXXARGS_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/cxxargs/include)
 endif()
-include_directories(${CMAKE_CXXARGS_HEADERS})
+include_directories("${CMAKE_CXXARGS_HEADERS}")
 
 #### cxxio
 if (DEFINED CMAKE_CXXIO_HEADERS)
   message(STATUS "cxxio headers provided in: ${CMAKE_CXXIO_HEADERS}")
 else()
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-cxxio.txt.in ${CMAKE_BINARY_DIR}/external/cxxio-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxio-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for cxxio failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/cxxio-download )
-  if(result)
-    message(FATAL_ERROR "Build step for cxxio failed: ${result}")
-  endif()
-  set(CMAKE_CXXIO_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/cxxio/include)
+  FetchContent_Declare(cxxio
+    GIT_REPOSITORY    https://github.com/tmaklin/cxxio.git
+    GIT_TAG           v0.1.0
+    PREFIX            "external"
+    SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/cxxio"
+    BUILD_IN_SOURCE   0
+    BUILD_COMMAND     ""
+    CONFIGURE_COMMAND ""
+    INSTALL_COMMAND   ""
+    )
+  FetchContent_MakeAvailable(cxxio)
+  set(CMAKE_CXXIO_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/cxxio/include)
 endif()
 include_directories("${CMAKE_CXXIO_HEADERS}")
 
 #### alignment-writer
-if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS)
+if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS AND DEFINED CMAKE_ALIGNMENT_WRITER_LIBRARY)
   message(STATUS "alignment-writer headers provided in: ${CMAKE_ALIGNMENT_WRITER_HEADERS}")
-  target_link_libraries(telescope libalignmentwriter)
+  message(STATUS "alignment-writer library provided in: ${CMAKE_ALIGNMENT_WRITER_LIBRARY}")
 else()
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-alignment-writer.txt.in ${CMAKE_BINARY_DIR}/external/alignment-writer-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/alignment-writer-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for alignment-writer failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/external/alignment-writer-download )
-  if(result)
-    message(FATAL_ERROR "Build step for alignment-writer failed: ${result}")
-  endif()
-  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer
-                   ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/build)
+  FetchContent_Declare(alignment-writer
+    GIT_REPOSITORY    https://github.com/tmaklin/alignment-writer.git
+    GIT_TAG           v0.5.0
+    PREFIX            "external"
+    SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/alignment-writer"
+    BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer"
+    BUILD_IN_SOURCE   0
+    CMAKE_ARGS      -D CMAKE_BXZSTR_HEADERS=${CMAKE_BXZSTR_HEADERS}
+		    -D CMAKE_CXXARGS_HEADERS=${CMAKE_CXXARGS_HEADERS}
+		    -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+		    -D "CMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+		    -D "CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+		    -D "CMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+		    -D "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+    INSTALL_COMMAND   ""
+    )
+  FetchContent_MakeAvailable(alignment-writer)
+  add_dependencies(libtelescope libalignmentwriter)
   set_target_properties(alignment-writer PROPERTIES EXCLUDE_FROM_ALL 1)
-  target_link_libraries(telescope libalignmentwriter)
-  set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer/include)
+  set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/alignment-writer/include)
+  set(CMAKE_ALIGNMENT_WRITER_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/lib/libalignment-writer.a)
 endif()
 include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
+target_link_libraries(libtelescope ${CMAKE_ALIGNMENT_WRITER_LIBRARY})
 
-#### Download googletest if building tests
-if(CMAKE_BUILD_TESTS)
-  if (DEFINED CMAKE_GOOGLETEST_HEADERS)
-    message(STATUS "googletest headers provided in: ${CMAKE_GOOGLETEST_HEADERS}")
-  else()
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/CMakeLists-googletest.txt.in ${CMAKE_CURRENT_BINARY_DIR}/external/googletest-download/CMakeLists.txt)
-    execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/external/googletest-download )
-    if(result)
-      message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-    endif()
-    execute_process(COMMAND ${CMAKE_COMMAND} --build .
-      RESULT_VARIABLE result
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/external/googletest-download )
-    if(result)
-      message(FATAL_ERROR "Build step for googletest failed: ${result}")
-    endif()
-    set(CMAKE_GOOGLETEST_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/external/googletest/googletest/include)
-    add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/external/googletest
-                     ${CMAKE_CURRENT_BINARY_DIR}/external/googletest/build)
-  endif()
-  set_target_properties(gmock PROPERTIES EXCLUDE_FROM_ALL 1)
-  set_target_properties(gmock_main PROPERTIES EXCLUDE_FROM_ALL 1)
-  include_directories("${CMAKE_GOOGLETEST_HEADERS}")
-  enable_testing()
-  # add_executable(runUnitTests)
-  # add_test(runUnitTests runUnitTests)
-  # target_link_libraries(runUnitTets libtelescope)
+#### googletest if building tests
+if (DEFINED CMAKE_ALIGNMENT_WRITER_HEADERS AND DEFINED CMAKE_ALIGNMENT_WRITER_LIBRARY)
+  message(STATUS "alignment-writer headers provided in: ${CMAKE_ALIGNMENT_WRITER_HEADERS}")
+  message(STATUS "alignment-writer library provided in: ${CMAKE_ALIGNMENT_WRITER_LIBRARY}")
+else()
+  FetchContent_Declare(alignment-writer
+    GIT_REPOSITORY    https://github.com/tmaklin/alignment-writer.git
+    GIT_TAG           v0.5.0
+    PREFIX            "external"
+    SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/alignment-writer"
+    BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/external/alignment-writer"
+    BUILD_IN_SOURCE   0
+    CMAKE_ARGS      -D CMAKE_BXZSTR_HEADERS=${CMAKE_BXZSTR_HEADERS}
+		    -D CMAKE_CXXARGS_HEADERS=${CMAKE_CXXARGS_HEADERS}
+		    -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+		    -D "CMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+		    -D "CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+		    -D "CMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+		    -D "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+    INSTALL_COMMAND   ""
+    )
+  FetchContent_MakeAvailable(alignment-writer)
+  add_dependencies(libtelescope libalignmentwriter)
+  set_target_properties(alignment-writer PROPERTIES EXCLUDE_FROM_ALL 1)
+  set(CMAKE_ALIGNMENT_WRITER_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/external/alignment-writer/include)
+  set(CMAKE_ALIGNMENT_WRITER_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/lib/libalignment-writer.a)
 endif()
+include_directories(${CMAKE_ALIGNMENT_WRITER_HEADERS})
+target_link_libraries(libtelescope ${CMAKE_ALIGNMENT_WRITER_LIBRARY})
+
+# #### Download googletest if building tests
+# if(CMAKE_BUILD_TESTS)
+#   if (DEFINED CMAKE_GOOGLETEST_HEADERS)
+#     message(STATUS "googletest headers provided in: ${CMAKE_GOOGLETEST_HEADERS}")
+#   else()
+#     FetchContent_Declare(googletest
+#       GIT_REPOSITORY    https://github.com/google/googletest.git
+#       GIT_TAG           release-1.11.0
+#       PREFIX            "external"
+#       SOURCE_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/external/googletest"
+#       BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/external/googletest"
+#       BUILD_IN_SOURCE   0
+#       CMAKE_ARGS      -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+# 		      -D "CMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+# 		      -D "CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+# 		      -D "CMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+# 		      -D "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+#     INSTALL_COMMAND   ""
+#     )
+#   FetchContent_MakeAvailable(googletest)
+#   add_dependencies(libtelescope googletest)
+#   enable_testing()
+#   endif()
+# endif()
 
 ## Project headers
 set(CMAKE_TELESCOPE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
