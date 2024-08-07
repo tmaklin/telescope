@@ -93,6 +93,10 @@ set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 
 ## Dependencies
+### Check OpenMP support
+find_package(OpenMP REQUIRED)
+target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
+
 ### Check supported compression types
 #### zlib
 if ((DEFINED ZLIB_LIBRARY AND DEFINED ZLIB_INCLUDE_DIR) AND (NOT DEFINED ZLIB_FOUND))
@@ -135,20 +139,6 @@ else()
     target_link_libraries(telescope libtelescope ${LIBLZMA_LIBRARY})
   endif()
 endif()
-
-### Check OpenMP support
-find_package(OpenMP)
-if (OPENMP_FOUND)
-  set(TELESCOPE_OPENMP_SUPPORT 1)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_PARALLEL")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -D_GLIBCXX_PARALLEL")
-  target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
-else()
-  set(TELESCOPE_OPENMP_SUPPORT 0)
-endif()
-#### Configure OpenMP if it is supported on the system.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/telescope_openmp_config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/telescope_openmp_config.hpp @ONLY)
 
 ### Check required dependenciesand and download them if not found
 #### BitMagic - supplied with the project
