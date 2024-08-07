@@ -93,6 +93,10 @@ set_target_properties(libtelescope PROPERTIES OUTPUT_NAME telescope)
 add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 
 ## Dependencies
+### Check OpenMP support
+find_package(OpenMP REQUIRED)
+target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
+
 ### Check supported compression types
 #### zlib
 if ((DEFINED ZLIB_LIBRARY AND DEFINED ZLIB_INCLUDE_DIR) AND (NOT DEFINED ZLIB_FOUND))
