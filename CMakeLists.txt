@@ -95,7 +95,9 @@ add_executable(telescope ${CMAKE_CURRENT_SOURCE_DIR}/src/telescope.cpp)
 ## Dependencies
 ### Check OpenMP support
 find_package(OpenMP)
-target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
+if (OPENMP_FOUND)
+  target_link_libraries(libtelescope OpenMP::OpenMP_CXX)
+endif()
 
 ### Check supported compression types
 #### zlib
