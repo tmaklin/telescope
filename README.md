@@ -1,3 +1,5 @@
+This repository has been archived as of 20 August 2024 and is no longer maintained.
+
 # telescope
 Convert [Themisto](https://github.com/algbio/Themisto)
 pseudoalignments to [kallisto](https://github.com/pachterlab/kallisto)
